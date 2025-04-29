@@ -32,3 +32,6 @@ This roadmap outlines our plan to focus on creating Docker containers for a vari
 #### SquiggleNet
 [SquiggleNet](https://github.com/welch-lab/SquiggleNet)
 
+#### ReadCurrent
+[ReadCurrent](https://github.com/Ming-Ni-Group/ReadCurrent)
+
