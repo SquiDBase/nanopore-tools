@@ -35,3 +35,30 @@ This roadmap outlines our plan to focus on creating Docker containers for a vari
 #### ReadCurrent
 [ReadCurrent](https://github.com/Ming-Ni-Group/ReadCurrent)
 
+
+## 🐳 Docker Tag Format
+
+Some Docker image is tagged with:
+
+* The version of the tool (from its Git history)
+* The version of the main repo: [`SquiDBase/nanopore-tools`](https://github.com/SquiDBase/nanopore-tools)
+
+### 🔖 Format
+
+```
+haliliceylanua/<tool-name>:<tool-version>-<main-repo-commit>
+```
+
+### 🧪 Example
+
+```
+haliliceylanua/uncalled:v2.3-3-g58dbec6-9e989bb
+```
+
+### 🔍 Breakdown
+
+* `v2.3-3-g58dbec6`: from the tool’s Git (e.g., `UNCALLED`)
+
+  * 3 commits after tag `v2.3`
+  * Commit `58dbec6`
+* `9e989bb`: commit from `nanopore-tools` (main repo)
