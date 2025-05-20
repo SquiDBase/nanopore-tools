@@ -21,4 +21,4 @@ USER user
 
 WORKDIR /workspace
 
-ENTRYPOINT ["uncalled"]
+ENTRYPOINT []
