@@ -50,15 +50,15 @@ def inference(inputs, model, label, device):
 	
 	# --- addition to make tester.py more verbose
 	with open("raw_outputs_" + str(label) + ".csv", "a") as f:
-	raw_scores = outputs.cpu().numpy()  # shape: (batch_size, 2)
-	predicted_classes = np.argmax(raw_scores, axis=1)
-	confidences = np.abs(raw_scores[:, 0] - raw_scores[:, 1])
+		raw_scores = outputs.cpu().numpy()  # shape: (batch_size, 2)
+		predicted_classes = np.argmax(raw_scores, axis=1)
+		confidences = np.abs(raw_scores[:, 0] - raw_scores[:, 1])
 	
-	for i in range(len(predicted_classes)):
-		pred = predicted_classes[i]
-		score0, score1 = raw_scores[i]
-		conf = confidences[i]
-		f.write(f"{pred} {score0:.4f} {score1:.4f} {conf:.4f}\n")
+		for i in range(len(predicted_classes)):
+			pred = predicted_classes[i]
+			score0, score1 = raw_scores[i]
+			conf = confidences[i]
+			f.write(f"{pred} {score0:.4f} {score1:.4f} {conf:.4f}\n")
 	# ---
 	
 	# --- commented out to avoid misleading stats	
@@ -115,7 +115,8 @@ def test(model, reads, label, batch_size, cut, length,
 			myprint('accepted neg reads: {}, rejected neg reads: {}, TN: {}, FP: {}'.format(
 				accepted_reads, rejected_reads, true_pred, false_pred), log)
 		total_time = time.time() - start_time
-	return true_pred, false_pred, total_time / batch_count
+	avg_time = total_time / batch_count if batch_count != 0 else None
+	return true_pred, false_pred, avg_time
 
 
 if __name__ == '__main__':
@@ -174,10 +175,22 @@ if __name__ == '__main__':
 		args.patches, args.seq_length, args.stride, args.patch_size, log, device)
 
 	# Calculate evaluation index values
-	accuracy = round((tp + tn) * 100 / (tp + tn + fp + fn), 2)
-	precision = round(tp * 100 / (tp + fp), 2)
-	recall = round(tp * 100 / (tp + fn), 2)
-	f1_score = round((2 * precision * recall) / (precision + recall), 2)
+	if tp == 0 and tn == 0:
+		accuracy = 0
+		precision = 0
+		recall = 0
+		f1_score = 0
+	else:
+		accuracy = round((tp + tn) * 100 / (tp + tn + fp + fn), 2)
+		precision = round(tp * 100 / (tp + fp), 2)
+		recall = round(tp * 100 / (tp + fn), 2)
+		if (precision + recall) != 0:
+			f1_score = round((2 * precision * recall) / (precision + recall), 2)
+		else:
+			f1_score = 0
+	# Ensure both are numbers; fallback to 0 if None
+	pos_infer_time = pos_infer_time if pos_infer_time is not None else 0.0
+	neg_infer_time = neg_infer_time if neg_infer_time is not None else 0.0
 	aver_infer_time = round((pos_infer_time + neg_infer_time) / 2, 4)
 	myprint(f"accuracy: {accuracy}, precision: {precision}, recall: {recall}, f1_score: {f1_score}, average inference time: {aver_infer_time}", log)
 	log.close()

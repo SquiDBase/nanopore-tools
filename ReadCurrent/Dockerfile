@@ -13,15 +13,14 @@ RUN git clone https://github.com/Ming-Ni-Group/ReadCurrent.git /app/ReadCurrent
 COPY verbose_tester.py /app/ReadCurrent/verbose_tester.py
 
 # Create the environment:
-COPY environment.yml .
-RUN conda env create -f /app/ReadCurrent/environment.yml && conda install conda-forge::numpy bioconda::ont-fast5-api ont_vbz_hdf_plugin && conda clean -a -y
+RUN conda env create -f /app/ReadCurrent/environment.yml && \
+    conda clean -a -y
 
 # Initialize conda in bash config files:
 RUN conda init bash
 
-# Activate the environment
-RUN conda activate readcurrent
-
+# Activate environment by default in all future shells
+RUN echo "conda activate readcurrent" >> ~/.bashrc
 
 
 # Enabling easy access to scripts and tools
