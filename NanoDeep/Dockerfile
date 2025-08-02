@@ -16,7 +16,8 @@ ADD https://github.com/lysovosyl/NanoDeep/archive/1abba04.tar.gz /app/
 
 # Extract and rename folder
 RUN tar xzf 1abba04.tar.gz && \
-    mv NanoDeep-* NanoDeep
+    mv NanoDeep-* NanoDeep && \
+    mv NanoDeep/read_deep/model/nanodeep.py NanoDeep/read_deep/model/NanoDeep.py
 
 # Upgrade pip and install NanoDeep with dependencies
 RUN pip install --upgrade pip && \
