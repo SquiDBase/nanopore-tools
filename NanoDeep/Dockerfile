@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tar \
     build-essential \
     python3-dev \
+    procps \
  && rm -rf /var/lib/apt/lists/*
 
 # Download NanoDeep snapshot
