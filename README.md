@@ -35,3 +35,5 @@ This roadmap outlines our plan to focus on creating Docker containers for a vari
 #### ReadCurrent
 [ReadCurrent](https://github.com/Ming-Ni-Group/ReadCurrent)
 
+#### NanoDeep
+[NanoDeep](https://github.com/lysovosyl/NanoDeep)
