@@ -11,13 +11,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
  && rm -rf /var/lib/apt/lists/*
 
-# Download NanoDeep snapshot
-ADD https://github.com/lysovosyl/NanoDeep/archive/1abba04.tar.gz /app/
+# Download the latest version of NanoDeep's benchmarking fork
+ADD https://github.com/laura-raes/NanoDeep/archive/refs/heads/main.tar.gz /app/
 
 # Extract and rename folder
-RUN tar xzf 1abba04.tar.gz && \
-    mv NanoDeep-* NanoDeep && \
-    mv NanoDeep/read_deep/model/nanodeep.py NanoDeep/read_deep/model/NanoDeep.py
+RUN tar xzf main.tar.gz && \
+    mv NanoDeep-* NanoDeep
 
 # Upgrade pip and install NanoDeep with dependencies
 RUN pip install --upgrade pip && \
