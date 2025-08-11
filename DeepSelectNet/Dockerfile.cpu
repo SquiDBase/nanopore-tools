@@ -26,7 +26,10 @@ RUN useradd -m user
 
 ENV PATH=$PATH:/app/DeepSelectNet/scripts:/app/DeepSelectNet/support
 
-RUN for script in inference.py preprocessor.py trainer.py; do \
+# Copy modified tester script
+COPY inference_moreoutput.py /app/DeepSelectNet/scripts/inference_moreoutput.py
+
+RUN for script in inference.py preprocessor.py trainer.py inference_moreoutput.py; do \
         chmod +x /app/DeepSelectNet/scripts/$script && \
         sed -i '1i#!/usr/bin/env python3' /app/DeepSelectNet/scripts/$script; \
     done
