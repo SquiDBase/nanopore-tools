@@ -1,0 +1,21 @@
+# Nanopore_Deep_Learning was tested on Python 3.6.4
+FROM --platform=linux/amd64 python:3.6.4 AS build
+
+WORKDIR /app
+
+RUN git clone https://github.com/nshomron/Nanopore_Deep_Learning /app/Nanopore_Deep_Learning && \
+	python -m pip install --upgrade pip setuptools wheel && \
+    pip install -r /app/Nanopore_Deep_Learning/requirements.txt	
+
+RUN useradd -m user
+
+ENV PATH=$PATH:/app/Nanopore_Deep_Learning/
+
+RUN for script in nanopore_training.py; do \
+        chmod +x /app/Nanopore_Deep_Learning/$script && \
+        sed -i '1i#!/usr/bin/env python3' /app/Nanopore_Deep_Learning/$script; \
+    done
+    
+USER user
+
+WORKDIR /workspace
