@@ -30,10 +30,14 @@ COPY --from=build /app/riser /home/user/riser
 RUN ln -s /home/user/riser/riser/riser.py /home/user/.local/bin/riser && \
 	ln -s /home/user/riser/riser/train.py /home/user/.local/bin/train && \
 	ln -s /home/user/riser/riser/test.py /home/user/.local/bin/test && \
-	chmod +x /home/user/riser/riser/riser.py /home/user/riser/riser/train.py /home/user/riser/riser/test.py && \
+	ln -s /home/user/riser/riser/retrain/preprocess.py /home/user/.local/bin/preprocess && \
+	ln -s /home/user/riser/riser/retrain/write_tensors.py /home/user/.local/bin/write_tensors && \
+	chmod +x /home/user/riser/riser/riser.py /home/user/riser/riser/train.py /home/user/riser/riser/test.py /home/user/riser/riser/retrain/preprocess.py /home/user/riser/riser/retrain/write_tensors.py && \
 	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/riser.py && \
 	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/train.py && \
-	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/test.py
+	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/test.py && \
+	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/retrain/preprocess.py && \
+	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/retrain/write_tensors.py
 
 # Set environment
 ENV PATH="/home/user/.local/bin:/home/user/riser/riser:$PATH"
