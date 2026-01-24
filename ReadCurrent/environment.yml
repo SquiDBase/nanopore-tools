@@ -112,6 +112,7 @@ dependencies:
   - jsonschema-specifications=2024.10.1=pyhd8ed1ab_1
   - jupyter_client=8.6.3=pyhd8ed1ab_1
   - jupyter_core=5.7.2=pyh31011fe_1
+  - jupyterlab
   - k8=0.2.5=hdcf5f25_4
   - keyutils=1.6.1=h166bdaf_0
   - kiwisolver=1.4.7=py39h74842e3_0
