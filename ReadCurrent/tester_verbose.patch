@@ -1,0 +1,34 @@
+--- tester.py
++++ tester.py
+@@ -47,11 +47,24 @@
+ def inference(inputs, model, label, device):
+ 	true_pred, false_pred = 0, 0
+ 	inputs = torch.FloatTensor(np.array(inputs)).to(device)
+ 	outputs = model(inputs)
++
++	# --- addition to make tester.py more verbose
++	with open("raw_outputs_" + str(label) + ".txt", "a") as f:
++		raw_scores = outputs.detach().cpu().numpy()  # shape: (batch_size, 2)
++		predicted_classes = np.argmax(raw_scores, axis=1)
++		confidences = np.abs(raw_scores[:, 0] - raw_scores[:, 1])
++
++		for i in range(len(predicted_classes)):
++			pred = predicted_classes[i]
++			score0, score1 = raw_scores[i]
++			conf = confidences[i]
++			f.write(f"{pred} {score0:.4f} {score1:.4f} {conf:.4f}\n")
++
+ 	outputs = outputs.max(dim=1).indices
+ 	for y in outputs:
+ 		if y == label:
+ 			true_pred += 1
+ 		else:
+ 			false_pred += 1
+ 	return true_pred, false_pred
+@@ -112,4 +125,6 @@
+ 			false_pred += f
+ 		batch_count += 1
+-	return true_pred, false_pred, total_time / batch_count
++	# avoid division by zero
++	avg_time = total_time / batch_count if batch_count > 0 else 0
++	return true_pred, false_pred, avg_time
