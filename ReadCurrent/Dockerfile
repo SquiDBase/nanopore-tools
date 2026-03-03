@@ -31,9 +31,5 @@ RUN apt-get update && \
     patchelf --clear-execstack /opt/conda/envs/env_ReadCurrent/lib/python3.9/site-packages/torch/lib/libtorch_cpu.so && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Drop privileges
-RUN useradd -m user
-USER user
-
 WORKDIR /workspace
 

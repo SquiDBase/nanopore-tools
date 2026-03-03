@@ -6,6 +6,7 @@ channels:
   - conda-forge
 dependencies:
   - python=3.9
+  - jupyterlab
   - pytorch=1.12.1
   - torchvision=0.13
   - torchaudio=0.12
