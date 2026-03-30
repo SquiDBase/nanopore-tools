@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y patch && rm -rf /var/lib/apt/lists/*
 COPY tester_verbose.patch /tmp/
 RUN patch --ignore-whitespace --fuzz 3 /app/ReadCurrent/tester.py /tmp/tester_verbose.patch
 
+# Fix CPU compatibility: patch torch.load to handle models trained on GPU
+RUN sed -i '/model\.load_state_dict.*torch\.load(args\.model_state)/s/torch\.load(args\.model_state)/torch.load(args.model_state, map_location=torch.device("cpu"))/' /app/ReadCurrent/tester.py
+
 # Create conda env as root
 COPY environment.yml .
 RUN conda env create -f environment.yml
