@@ -14,9 +14,10 @@ RUN apt-get update && \
 
 ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
 
+ARG UPSTREAM_REF=d3956ea
 RUN git clone https://github.com/CMU-SAFARI/RawHash \
     && cd RawHash \
-    && git checkout d3956ea \
+    && git checkout ${UPSTREAM_REF} \
     && git submodule update --init --recursive --depth 1
 
 

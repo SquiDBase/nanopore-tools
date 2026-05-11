@@ -9,12 +9,14 @@ FROM --platform=linux/amd64 python:3.9 as build
 WORKDIR /app
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential gcc
+RUN apt-get install -y --no-install-recommends build-essential gcc git
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-COPY sigmoni /app
+ARG UPSTREAM_REF=5c6383a
+RUN git clone https://github.com/vshiv18/sigmoni . \
+    && git checkout ${UPSTREAM_REF}
 
 RUN cd src/delta_rust && \
     cargo build --release && \

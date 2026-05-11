@@ -38,10 +38,12 @@ FROM --platform=linux/amd64 python:3.11 as build
 WORKDIR /app
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential gcc
+RUN apt-get install -y --no-install-recommends build-essential gcc git
 
 
-COPY uncalled4 /app
+ARG UPSTREAM_REF=679e37b
+RUN git clone https://github.com/skovaka/uncalled4 . \
+    && git checkout ${UPSTREAM_REF}
 
 RUN pip install --user .
 

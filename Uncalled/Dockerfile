@@ -4,9 +4,12 @@ FROM --platform=linux/amd64 python:3.6 as build
 WORKDIR /app
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential gcc wget
+RUN apt-get install -y --no-install-recommends build-essential gcc wget git
 
-COPY UNCALLED /app
+ARG UPSTREAM_REF=58dbec6
+RUN git clone https://github.com/skovaka/UNCALLED . \
+    && git checkout ${UPSTREAM_REF} \
+    && git submodule update --init --recursive --depth=1
 
 RUN pip install --user .
 

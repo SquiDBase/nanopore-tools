@@ -5,7 +5,9 @@ SHELL ["/bin/bash", "--login", "-c"]
 WORKDIR /app
 
 # Clone repository
-RUN git clone https://github.com/Ming-Ni-Group/ReadCurrent.git /app/ReadCurrent
+ARG UPSTREAM_REF=6db8921
+RUN git clone https://github.com/Ming-Ni-Group/ReadCurrent.git /app/ReadCurrent && \
+    git -C /app/ReadCurrent checkout ${UPSTREAM_REF}
 
 # Extend tester script to make it more verbose
 RUN apt-get update && apt-get install -y patch && rm -rf /var/lib/apt/lists/*
