@@ -68,17 +68,17 @@ jobs:
         run: |
           set -euo pipefail
           ALL='[
-            {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
-            {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4"},
-            {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign"},
-            {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni"},
-            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2"},
-            {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap"},
-            {"name":"squigglenet","dockerfile":"SquiggleNet/Dockerfile","context":"SquiggleNet"},
-            {"name":"riser","dockerfile":"RISER/Dockerfile","context":"RISER"},
-            {"name":"readcurrent","dockerfile":"ReadCurrent/Dockerfile","context":"ReadCurrent"},
-            {"name":"deepselectnet-cpu","dockerfile":"DeepSelectNet/Dockerfile.cpu","context":"DeepSelectNet"},
-            {"name":"deepselectnet-gpu","dockerfile":"DeepSelectNet/Dockerfile.gpu","context":"DeepSelectNet"}
+            {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled","submodule":"Uncalled/UNCALLED"},
+            {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4","submodule":"Uncalled4/uncalled4"},
+            {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign","submodule":"RawAlign/RawAlign"},
+            {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni","submodule":"Sigmoni/sigmoni"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","submodule":""},
+            {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","submodule":""},
+            {"name":"squigglenet","dockerfile":"SquiggleNet/Dockerfile","context":"SquiggleNet","submodule":""},
+            {"name":"riser","dockerfile":"RISER/Dockerfile","context":"RISER","submodule":""},
+            {"name":"readcurrent","dockerfile":"ReadCurrent/Dockerfile","context":"ReadCurrent","submodule":""},
+            {"name":"deepselectnet-cpu","dockerfile":"DeepSelectNet/Dockerfile.cpu","context":"DeepSelectNet","submodule":""},
+            {"name":"deepselectnet-gpu","dockerfile":"DeepSelectNet/Dockerfile.gpu","context":"DeepSelectNet","submodule":""}
           ]'
 
           if [[ "$EVENT" == "workflow_dispatch" ]]; then
@@ -109,9 +109,10 @@ jobs:
       matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 0
+
+      - name: Init required submodule
+        if: matrix.submodule != ''
+        run: git submodule update --init --recursive --depth=1 "${{ matrix.submodule }}"
 
       - name: Compute image tag and owner
         id: ver
