@@ -42,8 +42,10 @@ RUN apt-get install -y --no-install-recommends build-essential gcc git
 
 
 ARG UPSTREAM_REF=679e37b
-RUN git clone https://github.com/skovaka/uncalled4 . \
-    && git checkout ${UPSTREAM_REF}
+RUN git init . \
+    && git remote add origin https://github.com/skovaka/uncalled4 \
+    && git fetch --depth 1 origin ${UPSTREAM_REF} \
+    && git checkout FETCH_HEAD
 
 RUN pip install --user .
 

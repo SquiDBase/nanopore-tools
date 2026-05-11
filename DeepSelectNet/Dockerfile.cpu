@@ -10,9 +10,12 @@ RUN apt-get update && \
 	git
 
 ARG UPSTREAM_REF=66429a8
-RUN git clone https://github.com/AnjanaSenanayake/DeepSelectNet && \
-	cd DeepSelectNet && \
-	git checkout ${UPSTREAM_REF}
+RUN mkdir DeepSelectNet && cd DeepSelectNet && \
+	git init && \
+	git remote add origin https://github.com/AnjanaSenanayake/DeepSelectNet && \
+	git fetch --depth 1 origin ${UPSTREAM_REF} && \
+	git checkout FETCH_HEAD && \
+	rm -rf .git
 
 RUN pip3 install -r ./DeepSelectNet/requirements.txt \
 	# Workaround "generated code is out of date and must be regenerated with protoc >= 3.19.0" error in trainer.py

@@ -4,7 +4,7 @@ FROM --platform=linux/amd64 python:3.11 AS build
 WORKDIR /app
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential gcc
+RUN apt-get install -y --no-install-recommends build-essential gcc git
 
 # PyTorch CPU version (or should the container support GPU?)
 RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
@@ -14,9 +14,12 @@ RUN pip3 install scipy numpy click ont-fast5-api
 RUN pip3 install typing-extensions --upgrade
 
 ARG UPSTREAM_REF=fb7b206
-RUN git clone https://github.com/welch-lab/SquiggleNet && \
-    cd SquiggleNet && \
-    git checkout ${UPSTREAM_REF}
+RUN mkdir SquiggleNet && cd SquiggleNet && \
+    git init && \
+    git remote add origin https://github.com/welch-lab/SquiggleNet && \
+    git fetch --depth 1 origin ${UPSTREAM_REF} && \
+    git checkout FETCH_HEAD && \
+    rm -rf .git
 
 RUN useradd -m user
 
