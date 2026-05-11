@@ -9,8 +9,13 @@ Images are built by CI and published to GitHub Container Registry.
 
 ```
 docker pull ghcr.io/squidbase/uncalled:latest
-docker run --rm -it ghcr.io/squidbase/uncalled:latest --help
+docker run --rm -it ghcr.io/squidbase/uncalled:latest uncalled --help
 ```
+
+Most images set `ENTRYPOINT []`, so pass the tool's executable name as the
+first argument (e.g. `uncalled`, `rawalign`, `sigmap`). A few are
+pre-configured with an entrypoint (e.g. `uncalled4`) and accept the
+tool's flags directly.
 
 ## Versioning
 
@@ -75,13 +80,18 @@ To keep builds reproducible, fast, and free of upstream VCS metadata, every
 Dockerfile fetches its tool with a shallow, single-commit fetch of a pinned ref:
 
 ```
-ARG UPSTREAM_REF=<commit-sha>
+ARG UPSTREAM_REF=<full-40-char-sha>
 RUN git init . \
     && git remote add origin https://github.com/<org>/<repo> \
     && git fetch --depth 1 origin ${UPSTREAM_REF} \
     && git checkout FETCH_HEAD \
     && rm -rf .git
 ```
+
+> **`UPSTREAM_REF` must be a full 40-character commit SHA.** GitHub's smart
+> HTTP protocol only resolves arbitrary commits by their full SHA — an
+> abbreviated 7-char SHA fails with `couldn't find remote ref`. A branch or
+> tag name also works.
 
 Notes:
 
@@ -121,7 +131,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential git \
  && rm -rf /var/lib/apt/lists/*
 
-ARG UPSTREAM_REF=<commit-sha>
+ARG UPSTREAM_REF=<full-40-char-sha>
 RUN git init . \
     && git remote add origin https://github.com/<org>/<repo> \
     && git fetch --depth 1 origin ${UPSTREAM_REF} \
@@ -136,7 +146,8 @@ Conventions:
 - Prefer multi-stage builds for compiled tools so the final image only carries
   the built artifacts.
 - Add a non-root `user` and `WORKDIR /workspace` in the final stage.
-- Pin `UPSTREAM_REF` to a specific commit SHA, not a branch name.
+- Pin `UPSTREAM_REF` to the **full 40-char commit SHA** (or a tag), not a
+  branch name. Abbreviated SHAs fail with `git fetch --depth 1`.
 
 ### 3. Wire the tool into CI
 
