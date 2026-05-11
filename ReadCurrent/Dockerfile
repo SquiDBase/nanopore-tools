@@ -5,9 +5,13 @@ SHELL ["/bin/bash", "--login", "-c"]
 WORKDIR /app
 
 # Clone repository
-ARG UPSTREAM_REF=6db8921
-RUN git clone https://github.com/Ming-Ni-Group/ReadCurrent.git /app/ReadCurrent && \
-    git -C /app/ReadCurrent checkout ${UPSTREAM_REF}
+ARG UPSTREAM_REF=6db8921fdc04236dd23a11a951a25ccc0965ae72
+RUN mkdir -p /app/ReadCurrent && cd /app/ReadCurrent && \
+    git init . && \
+    git remote add origin https://github.com/Ming-Ni-Group/ReadCurrent && \
+    git fetch --depth 1 origin ${UPSTREAM_REF} && \
+    git checkout FETCH_HEAD && \
+    rm -rf .git
 
 # Extend tester script to make it more verbose
 RUN apt-get update && apt-get install -y patch && rm -rf /var/lib/apt/lists/*

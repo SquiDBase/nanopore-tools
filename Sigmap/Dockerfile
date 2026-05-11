@@ -14,11 +14,13 @@ RUN apt-get update && \
 
 ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
 
-ARG UPSTREAM_REF=c9a4048
-RUN git clone https://github.com/haowenz/sigmap \
-    && cd sigmap \
-    && git checkout ${UPSTREAM_REF} \
-    && git submodule update --init --recursive --depth 1
+ARG UPSTREAM_REF=c9a40483264c9514587a36555b5af48d3f054f6f
+RUN mkdir sigmap && cd sigmap \
+    && git init . \
+    && git remote add origin https://github.com/haowenz/sigmap \
+    && git fetch --depth 1 origin ${UPSTREAM_REF} \
+    && git checkout FETCH_HEAD \
+    && git submodule update --init --recursive --depth=1
 
 RUN cd ./sigmap && make
 
