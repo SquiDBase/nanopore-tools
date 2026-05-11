@@ -1,0 +1,146 @@
+name: Build and push Docker images
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tools:
+        description: 'Comma-separated tool names to build, or "all"'
+        default: 'all'
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  detect-changes:
+    name: Detect changed tools
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      any: ${{ steps.set-matrix.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            uncalled:
+              - 'Uncalled/**'
+            uncalled4:
+              - 'Uncalled4/**'
+            rawalign:
+              - 'RawAlign/**'
+            sigmoni:
+              - 'Sigmoni/**'
+            rawhash2:
+              - 'RawHash2/**'
+            sigmap:
+              - 'Sigmap/**'
+            squigglenet:
+              - 'SquiggleNet/**'
+            riser:
+              - 'RISER/**'
+            readcurrent:
+              - 'ReadCurrent/**'
+            deepselectnet-cpu:
+              - 'DeepSelectNet/**'
+              - '!DeepSelectNet/Dockerfile.gpu'
+            deepselectnet-gpu:
+              - 'DeepSelectNet/**'
+              - '!DeepSelectNet/Dockerfile.cpu'
+
+      - name: Build matrix
+        id: set-matrix
+        env:
+          CHANGES: ${{ steps.filter.outputs.changes }}
+          EVENT: ${{ github.event_name }}
+          DISPATCH_TOOLS: ${{ github.event.inputs.tools }}
+        run: |
+          set -euo pipefail
+          ALL='[
+            {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
+            {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4"},
+            {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign"},
+            {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2"},
+            {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap"},
+            {"name":"squigglenet","dockerfile":"SquiggleNet/Dockerfile","context":"SquiggleNet"},
+            {"name":"riser","dockerfile":"RISER/Dockerfile","context":"RISER"},
+            {"name":"readcurrent","dockerfile":"ReadCurrent/Dockerfile","context":"ReadCurrent"},
+            {"name":"deepselectnet-cpu","dockerfile":"DeepSelectNet/Dockerfile.cpu","context":"DeepSelectNet"},
+            {"name":"deepselectnet-gpu","dockerfile":"DeepSelectNet/Dockerfile.gpu","context":"DeepSelectNet"}
+          ]'
+
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            if [[ "$DISPATCH_TOOLS" == "all" || -z "$DISPATCH_TOOLS" ]]; then
+              SELECTED=$(jq -c '.' <<< "$ALL")
+            else
+              NAMES=$(jq -c -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' <<< "$DISPATCH_TOOLS")
+              SELECTED=$(jq -c --argjson n "$NAMES" '[.[] | select(.name as $x | $n | index($x))]' <<< "$ALL")
+            fi
+          else
+            SELECTED=$(jq -c --argjson c "$CHANGES" '[.[] | select(.name as $x | $c | index($x))]' <<< "$ALL")
+          fi
+
+          echo "Selected tools:"
+          jq -r '.[].name' <<< "$SELECTED" || echo "(none)"
+          {
+            echo "matrix={\"include\":$SELECTED}"
+            echo "any=$(jq 'length > 0' <<< "$SELECTED")"
+          } >> "$GITHUB_OUTPUT"
+
+  build-and-push:
+    name: ${{ matrix.name }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Compute image tag
+        id: ver
+        run: |
+          set -euo pipefail
+          TAG=$(git rev-parse --short HEAD)
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Tag: $TAG"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64
+          provenance: false
+          tags: |
+            ghcr.io/squidbase/${{ matrix.name }}:${{ steps.ver.outputs.tag }}
+            ghcr.io/squidbase/${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
