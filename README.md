@@ -5,45 +5,54 @@ Docker containers for tools used in nanopore signal-level ("squiggle") analysis.
 Each top-level directory is a self-contained build for one upstream project.
 Images are built by CI and published to GitHub Container Registry.
 
-## Available tools
-
-### Mapping
-
-- [RawAlign](https://github.com/CMU-SAFARI/RawAlign)
-- [UNCALLED](https://github.com/skovaka/UNCALLED) (different from UNCALLED 4)
-- [UNCALLED 4](https://github.com/skovaka/uncalled4)
-- [Sigmap](https://github.com/haowenz/sigmap)
-- [RawHash](https://github.com/CMU-SAFARI/RawHash)
-
-### Classification
-
-- [Sigmoni](https://github.com/vshiv18/sigmoni)
-- [SquiggleNet](https://github.com/welch-lab/SquiggleNet)
-- [ReadCurrent](https://github.com/Ming-Ni-Group/ReadCurrent)
-- [RISER](https://github.com/comprna/riser)
-- [DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet)
-
-## Docker images
-
-CI publishes images to GHCR on every push to `main` and on manual dispatch.
-Pull requests are built but not pushed.
-
-Tag format:
-
-```
-ghcr.io/<owner>/<tool>:<short-sha>
-ghcr.io/<owner>/<tool>:latest
-```
-
-`<owner>` is the lowercased GitHub owner of this repo (e.g. `squidbase`) and
-`<short-sha>` is the short commit SHA of `nanopore-tools` at build time.
-
-Example:
+## Quick start
 
 ```
 docker pull ghcr.io/squidbase/uncalled:latest
 docker run --rm -it ghcr.io/squidbase/uncalled:latest --help
 ```
+
+## Versioning
+
+Two independent things are pinned for every image:
+
+- **Image tag** — set by CI to the short SHA of this repo at build time, plus
+  `:latest`. Format: `ghcr.io/squidbase/<tool>:<short-sha>` and
+  `ghcr.io/squidbase/<tool>:latest`. Every push to `main` produces a fresh
+  pair; PR builds verify but don't push.
+- **Upstream tool pin** — each Dockerfile fetches its upstream source at a
+  specific commit via `ARG UPSTREAM_REF=<full-sha>`. Override at build time
+  with `--build-arg UPSTREAM_REF=<sha>` (see [Building locally](#building-locally)).
+
+To pin a deployment, use the short-SHA tag (e.g.
+`ghcr.io/squidbase/uncalled:9dcb4ea`) rather than `:latest`. The short SHA
+identifies the exact Dockerfile and upstream pin used.
+
+## Available tools
+
+All images live under `ghcr.io/squidbase/`. The "Pull" column shows the
+matching tag; substitute `:latest` with a specific `<short-sha>` to pin.
+
+### Mapping
+
+| Tool | Upstream | Pull |
+|---|---|---|
+| UNCALLED | [skovaka/UNCALLED](https://github.com/skovaka/UNCALLED) | `docker pull ghcr.io/squidbase/uncalled:latest` |
+| UNCALLED 4 | [skovaka/uncalled4](https://github.com/skovaka/uncalled4) | `docker pull ghcr.io/squidbase/uncalled4:latest` |
+| RawAlign | [CMU-SAFARI/RawAlign](https://github.com/CMU-SAFARI/RawAlign) | `docker pull ghcr.io/squidbase/rawalign:latest` |
+| RawHash | [CMU-SAFARI/RawHash](https://github.com/CMU-SAFARI/RawHash) | `docker pull ghcr.io/squidbase/rawhash2:latest` |
+| Sigmap | [haowenz/sigmap](https://github.com/haowenz/sigmap) | `docker pull ghcr.io/squidbase/sigmap:latest` |
+
+### Classification
+
+| Tool | Upstream | Pull |
+|---|---|---|
+| Sigmoni | [vshiv18/sigmoni](https://github.com/vshiv18/sigmoni) | `docker pull ghcr.io/squidbase/sigmoni:latest` |
+| SquiggleNet | [welch-lab/SquiggleNet](https://github.com/welch-lab/SquiggleNet) | `docker pull ghcr.io/squidbase/squigglenet:latest` |
+| ReadCurrent | [Ming-Ni-Group/ReadCurrent](https://github.com/Ming-Ni-Group/ReadCurrent) | `docker pull ghcr.io/squidbase/readcurrent:latest` |
+| RISER | [comprna/riser](https://github.com/comprna/riser) | `docker pull ghcr.io/squidbase/riser:latest` |
+| DeepSelectNet (CPU) | [AnjanaSenanayake/DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet) | `docker pull ghcr.io/squidbase/deepselectnet-cpu:latest` |
+| DeepSelectNet (GPU) | [AnjanaSenanayake/DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet) | `docker pull ghcr.io/squidbase/deepselectnet-gpu:latest` |
 
 ## Building locally
 
