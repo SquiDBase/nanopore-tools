@@ -55,10 +55,8 @@ jobs:
               - 'ReadCurrent/**'
             deepselectnet-cpu:
               - 'DeepSelectNet/**'
-              - '!DeepSelectNet/Dockerfile.gpu'
             deepselectnet-gpu:
               - 'DeepSelectNet/**'
-              - '!DeepSelectNet/Dockerfile.cpu'
 
       - name: Build matrix
         id: set-matrix
