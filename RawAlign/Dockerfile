@@ -4,12 +4,15 @@ FROM --platform=linux/amd64 ubuntu:jammy AS build
 WORKDIR /app
 
 RUN  apt-get update \
-  && apt-get install -y make build-essential libz-dev \
+  && apt-get install -y make build-essential libz-dev git \
   && rm -rf /var/lib/apt/lists/*
 
 ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
 
-COPY RawAlign /app
+ARG UPSTREAM_REF=ee59c4e
+RUN git clone https://github.com/cmu-safari/RawAlign . \
+    && git checkout ${UPSTREAM_REF} \
+    && git submodule update --init --recursive --depth=1
 
 RUN make
 

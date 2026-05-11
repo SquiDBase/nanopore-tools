@@ -13,7 +13,10 @@ RUN pip3 install scipy numpy click ont-fast5-api
 
 RUN pip3 install typing-extensions --upgrade
 
-RUN git clone https://github.com/welch-lab/SquiggleNet
+ARG UPSTREAM_REF=fb7b206
+RUN git clone https://github.com/welch-lab/SquiggleNet && \
+    cd SquiggleNet && \
+    git checkout ${UPSTREAM_REF}
 
 RUN useradd -m user
 
