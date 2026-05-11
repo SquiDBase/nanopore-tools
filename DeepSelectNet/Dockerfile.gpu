@@ -23,7 +23,7 @@ RUN cd /usr/src && \
 
 # Clone git repo
 RUN apt-get install -y git
-ARG UPSTREAM_REF=66429a8
+ARG UPSTREAM_REF=66429a8608fbf59f34bdcd2609b3931c145501fb
 RUN mkdir DeepSelectNet && cd DeepSelectNet && \
     git init && \
     git remote add origin https://github.com/AnjanaSenanayake/DeepSelectNet && \

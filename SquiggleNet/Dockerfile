@@ -13,7 +13,7 @@ RUN pip3 install scipy numpy click ont-fast5-api
 
 RUN pip3 install typing-extensions --upgrade
 
-ARG UPSTREAM_REF=fb7b206
+ARG UPSTREAM_REF=fb7b206e05935de48895cdbd16a7c1df73515202
 RUN mkdir SquiggleNet && cd SquiggleNet && \
     git init && \
     git remote add origin https://github.com/welch-lab/SquiggleNet && \

@@ -14,7 +14,7 @@ RUN apt-get install -y --no-install-recommends build-essential gcc git
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-ARG UPSTREAM_REF=5c6383a
+ARG UPSTREAM_REF=5c6383abcf6db2a1fd5531ecfbfc316c3ab52a6a
 RUN git init . \
     && git remote add origin https://github.com/vshiv18/sigmoni \
     && git fetch --depth 1 origin ${UPSTREAM_REF} \
