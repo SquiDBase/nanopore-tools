@@ -10,7 +10,7 @@ RUN git clone https://github.com/Ming-Ni-Group/ReadCurrent.git /app/ReadCurrent 
     git -C /app/ReadCurrent checkout ${UPSTREAM_REF}
 
 # Extend tester script to make it more verbose
-RUN apt-get update && apt-get install -y patch && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y patch libgomp1 && rm -rf /var/lib/apt/lists/*
 COPY tester_verbose.patch /tmp/
 RUN patch --ignore-whitespace --fuzz 3 /app/ReadCurrent/tester.py /tmp/tester_verbose.patch
 
