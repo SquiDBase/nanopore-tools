@@ -3,8 +3,9 @@ FROM --platform=linux/amd64 python:3.11 AS build
 
 WORKDIR /app
 
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential gcc git
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential gcc git \
+    && rm -rf /var/lib/apt/lists/*
 
 # PyTorch CPU version (or should the container support GPU?)
 RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu

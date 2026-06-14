@@ -12,10 +12,9 @@ docker pull ghcr.io/squidbase/uncalled:latest
 docker run --rm -it ghcr.io/squidbase/uncalled:latest uncalled --help
 ```
 
-Most images set `ENTRYPOINT []`, so pass the tool's executable name as the
-first argument (e.g. `uncalled`, `rawalign`, `sigmap`). A few are
-pre-configured with an entrypoint (e.g. `uncalled4`) and accept the
-tool's flags directly.
+Entrypoint behavior varies by image. For portability, invoke the executable
+explicitly (e.g. `uncalled --help`, `rawalign --help`, `sigmap --help`).
+Some images define an entrypoint (e.g. `uncalled4`) and accept flags directly.
 
 ## Versioning
 
@@ -76,8 +75,8 @@ docker build --build-arg UPSTREAM_REF=<commit-sha> -t my-uncalled Uncalled
 
 ## Upstream source pinning
 
-To keep builds reproducible, fast, and free of upstream VCS metadata, every
-Dockerfile fetches its tool with a shallow, single-commit fetch of a pinned ref:
+To keep builds reproducible, fast, and free of upstream VCS metadata, use this
+preferred pattern (already adopted by many Dockerfiles in this repo):
 
 ```
 ARG UPSTREAM_REF=<full-40-char-sha>
@@ -88,10 +87,9 @@ RUN git init . \
     && rm -rf .git
 ```
 
-> **`UPSTREAM_REF` must be a full 40-character commit SHA.** GitHub's smart
-> HTTP protocol only resolves arbitrary commits by their full SHA — an
-> abbreviated 7-char SHA fails with `couldn't find remote ref`. A branch or
-> tag name also works.
+> For this shallow-fetch pattern, **`UPSTREAM_REF` should be a full 40-character
+> commit SHA** (or a branch/tag ref). Abbreviated SHAs can fail with
+> `couldn't find remote ref`.
 
 Notes:
 
@@ -146,8 +144,8 @@ Conventions:
 - Prefer multi-stage builds for compiled tools so the final image only carries
   the built artifacts.
 - Add a non-root `user` and `WORKDIR /workspace` in the final stage.
-- Pin `UPSTREAM_REF` to the **full 40-char commit SHA** (or a tag), not a
-  branch name. Abbreviated SHAs fail with `git fetch --depth 1`.
+- For the shallow-fetch pattern above, pin `UPSTREAM_REF` to the
+  **full 40-char commit SHA** (or use a tag/branch ref).
 
 ### 3. Wire the tool into CI
 
