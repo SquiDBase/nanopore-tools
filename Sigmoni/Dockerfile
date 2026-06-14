@@ -12,7 +12,13 @@ RUN rm -rf build && mkdir build && cd build \
     && make install
 
 # Guardrail: fail if any built SPUMONI binary still contains AVX-512.
-RUN if command -v objdump >/dev/null 2>&1; then \
+# Auto-skipped when TARGET_ARCH is an AVX-512 tier.
+ARG CHECK_AVX512=auto
+RUN arch="${TARGET_ARCH}" check="${CHECK_AVX512}"; \
+    if [ "$check" = "auto" ]; then \
+      echo "$arch" | grep -qE 'v4|avx512|znver4' && check=skip || check=enforce; \
+    fi; \
+    if [ "$check" = "enforce" ] && command -v objdump >/dev/null 2>&1; then \
       bad=0; \
       for f in $(find /spumoni/build -maxdepth 2 -type f -executable); do \
         if objdump -d "$f" 2>/dev/null | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand'; then \
@@ -20,7 +26,7 @@ RUN if command -v objdump >/dev/null 2>&1; then \
         fi; \
       done; \
       [ "$bad" -eq 0 ] && echo 'OK: SPUMONI binaries are portable (no AVX-512)' || exit 1; \
-    else echo 'objdump unavailable; skipping AVX-512 check'; fi
+    else echo 'AVX-512 check skipped'; fi
 
 FROM --platform=linux/amd64 python:3.9 as build
 

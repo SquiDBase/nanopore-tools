@@ -27,10 +27,19 @@ RUN grep -rl 'march=native' sigmap | xargs sed -i "s/-march=native/-march=${TARG
 
 RUN cd ./sigmap && make
 
-RUN objdump -d sigmap/sigmap \
-      | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
-      && { echo 'ERROR: AVX-512 instructions present in sigmap'; exit 1; } \
-      || echo 'OK: sigmap is portable (no AVX-512)'
+ARG CHECK_AVX512=auto
+RUN arch="${TARGET_ARCH}" check="${CHECK_AVX512}"; \
+    if [ "$check" = "auto" ]; then \
+      echo "$arch" | grep -qE 'v4|avx512|znver4' && check=skip || check=enforce; \
+    fi; \
+    if [ "$check" = "enforce" ]; then \
+      objdump -d sigmap/sigmap \
+        | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
+        && { echo 'ERROR: AVX-512 instructions present in sigmap'; exit 1; } \
+        || echo 'OK: sigmap is portable (no AVX-512)'; \
+    else \
+      echo 'AVX-512 check skipped (avx512 build variant)'; \
+    fi
 
 
 FROM ubuntu:jammy
