@@ -32,6 +32,15 @@ To pin a deployment, use the short-SHA tag (e.g.
 `ghcr.io/squidbase/uncalled:9dcb4ea`) rather than `:latest`. The short SHA
 identifies the exact Dockerfile and upstream pin used.
 
+For the four compiled C/C++ tools (`rawalign`, `rawhash2`, `sigmap`,
+`sigmoni`), CI now publishes two image families:
+
+- `:<short-sha>` / `:latest` for the portable baseline build (`-march=x86-64-v3`)
+- `-avx512:<short-sha>` / `-avx512:latest` for AVX-512-capable systems
+
+The portable images are the default and are the safe choice for Zen 3 and most
+general-purpose x86-64 hosts.
+
 ## Available tools
 
 All images live under `ghcr.io/squidbase/`. The "Pull" column shows the
@@ -71,6 +80,14 @@ docker build -t my-uncalled Uncalled
 
 ```
 docker build --build-arg UPSTREAM_REF=<commit-sha> -t my-uncalled Uncalled
+```
+
+For the compiled tools, you can also choose the ISA baseline at build time with
+`TARGET_ARCH` when building locally. The default is the portable `x86-64-v3`
+baseline; use `x86-64-v4` or `znver4` only when building an AVX-512 variant.
+
+```
+docker build --build-arg TARGET_ARCH=x86-64-v4 -t my-rawhash2 RawHash2
 ```
 
 ## Upstream source pinning
@@ -146,6 +163,11 @@ Conventions:
 - Add a non-root `user` and `WORKDIR /workspace` in the final stage.
 - For the shallow-fetch pattern above, pin `UPSTREAM_REF` to the
   **full 40-char commit SHA** (or use a tag/branch ref).
+
+If you add a new compiled tool that should have both portable and AVX-512
+variants, wire two matrix entries into `.github/workflows/docker.yml`: one with
+`TARGET_ARCH=x86-64-v3` and one with `TARGET_ARCH=x86-64-v4`, and give the
+AVX-512 image an `-avx512` name suffix.
 
 ### 3. Wire the tool into CI
 
