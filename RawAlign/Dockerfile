@@ -15,13 +15,9 @@ RUN git init . \
     && git submodule update --init --recursive --depth=1
 
 # --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
-# RawAlign's MODE=default appends -march=native. Wrappers append a portable
-# baseline last so it wins regardless of MODE.
+# RawAlign's MODE=default appends -march=native. Patch it in-place after clone.
 ARG TARGET_ARCH=x86-64-v3
-RUN for c in gcc g++ cc c++; do \
-      printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
-        > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
-    done
+RUN grep -rl 'march=native' . | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
 
 RUN make
 

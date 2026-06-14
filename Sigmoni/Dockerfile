@@ -3,18 +3,13 @@ FROM --platform=linux/amd64 oma219/spumoni:v2.0.9 as spumoni
 WORKDIR /spumoni
 
 # --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
-# SPUMONI's CMake sets -march=native in CMAKE_CXX_FLAGS_RELEASE. Wrappers
-# append a portable baseline last, which overrides it. CMake re-detects the
-# compiler here because the build dir is recreated from scratch below.
+# SPUMONI's CMake sets -march=native in CMAKE_CXX_FLAGS_RELEASE. Pass an
+# explicit CMAKE_CXX_FLAGS override on the cmake command line; this is merged
+# into the compiler invocation after the CMakeLists flags, so it wins.
 ARG TARGET_ARCH=x86-64-v3
-RUN for c in gcc g++ cc c++; do \
-      if command -v /usr/bin/$c >/dev/null 2>&1; then \
-        printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
-          > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
-      fi; \
-    done
-
-RUN rm -rf build && mkdir build && cd build && cmake .. && make install
+RUN rm -rf build && mkdir build && cd build \
+    && cmake -DCMAKE_CXX_FLAGS="-march=${TARGET_ARCH}" .. \
+    && make install
 
 # Guardrail: fail if any built SPUMONI binary still contains AVX-512.
 RUN if command -v objdump >/dev/null 2>&1; then \

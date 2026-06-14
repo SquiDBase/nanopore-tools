@@ -21,12 +21,9 @@ RUN mkdir sigmap && cd sigmap \
     && git submodule update --init --recursive --depth=1
 
 # --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
-# sigmap's Makefile hardcodes -march=native in cxxflags.
+# sigmap's Makefile hardcodes -march=native in cxxflags. Patch in-place.
 ARG TARGET_ARCH=x86-64-v3
-RUN for c in gcc g++ cc c++; do \
-      printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
-        > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
-    done
+RUN grep -rl 'march=native' sigmap | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
 
 RUN cd ./sigmap && make
 

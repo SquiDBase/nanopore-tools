@@ -23,14 +23,11 @@ RUN mkdir RawHash && cd RawHash \
 # --- Portability fix -------------------------------------------------------
 # Upstream src/Makefile hardcodes -march=native, which bakes in whatever ISA
 # the build host has (GitHub runners often have AVX-512). That binary then
-# crashes with SIGILL on CPUs without it (e.g. AMD Zen 3). Instead of editing
-# upstream, install thin compiler wrappers that append a portable baseline;
-# GCC honors the LAST -march, so this overrides -march=native.
+# crashes with SIGILL on CPUs without it (e.g. AMD Zen 3). We patch the flag
+# in-place after clone; sed is reliable regardless of compiler path or Makefile
+# structure. ARG TARGET_ARCH lets callers override the baseline (default: AVX2).
 ARG TARGET_ARCH=x86-64-v3
-RUN for c in gcc g++ cc c++; do \
-      printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
-        > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
-    done
+RUN grep -rl 'march=native' RawHash | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
 
 RUN cd ./RawHash && make
 
