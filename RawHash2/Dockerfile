@@ -12,8 +12,6 @@ RUN apt-get update && \
         git && \
     rm -rf /var/lib/apt/lists/*
 
-ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
-
 ARG UPSTREAM_REF=d3956eaf261588555fa884c5c294fd46df591851
 RUN mkdir RawHash && cd RawHash \
     && git init . \
@@ -22,8 +20,25 @@ RUN mkdir RawHash && cd RawHash \
     && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
+# --- Portability fix -------------------------------------------------------
+# Upstream src/Makefile hardcodes -march=native, which bakes in whatever ISA
+# the build host has (GitHub runners often have AVX-512). That binary then
+# crashes with SIGILL on CPUs without it (e.g. AMD Zen 3). Instead of editing
+# upstream, install thin compiler wrappers that append a portable baseline;
+# GCC honors the LAST -march, so this overrides -march=native.
+ARG TARGET_ARCH=x86-64-v3
+RUN for c in gcc g++ cc c++; do \
+      printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
+        > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
+    done
 
 RUN cd ./RawHash && make
+
+# Guardrail: fail the build if AVX-512 slipped into the binary anyway.
+RUN objdump -d RawHash/bin/rawhash2 \
+      | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
+      && { echo 'ERROR: AVX-512 instructions present in rawhash2'; exit 1; } \
+      || echo 'OK: rawhash2 is portable (no AVX-512)'
 
 
 FROM ubuntu:jammy

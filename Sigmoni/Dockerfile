@@ -2,7 +2,30 @@ FROM --platform=linux/amd64 oma219/spumoni:v2.0.9 as spumoni
 
 WORKDIR /spumoni
 
+# --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
+# SPUMONI's CMake sets -march=native in CMAKE_CXX_FLAGS_RELEASE. Wrappers
+# append a portable baseline last, which overrides it. CMake re-detects the
+# compiler here because the build dir is recreated from scratch below.
+ARG TARGET_ARCH=x86-64-v3
+RUN for c in gcc g++ cc c++; do \
+      if command -v /usr/bin/$c >/dev/null 2>&1; then \
+        printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
+          > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
+      fi; \
+    done
+
 RUN rm -rf build && mkdir build && cd build && cmake .. && make install
+
+# Guardrail: fail if any built SPUMONI binary still contains AVX-512.
+RUN if command -v objdump >/dev/null 2>&1; then \
+      bad=0; \
+      for f in $(find /spumoni/build -maxdepth 2 -type f -executable); do \
+        if objdump -d "$f" 2>/dev/null | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand'; then \
+          echo "ERROR: AVX-512 instructions present in $f"; bad=1; \
+        fi; \
+      done; \
+      [ "$bad" -eq 0 ] && echo 'OK: SPUMONI binaries are portable (no AVX-512)' || exit 1; \
+    else echo 'objdump unavailable; skipping AVX-512 check'; fi
 
 FROM --platform=linux/amd64 python:3.9 as build
 
@@ -57,9 +80,3 @@ RUN chmod +x /sigmoni/index.py && chmod +x /sigmoni/main.py
 USER user
 
 WORKDIR /workspace
-
-
-
-
-
-

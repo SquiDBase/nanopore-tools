@@ -12,8 +12,6 @@ RUN apt-get update && \
         git && \
     rm -rf /var/lib/apt/lists/*
 
-ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
-
 ARG UPSTREAM_REF=c9a40483264c9514587a36555b5af48d3f054f6f
 RUN mkdir sigmap && cd sigmap \
     && git init . \
@@ -22,7 +20,20 @@ RUN mkdir sigmap && cd sigmap \
     && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
+# --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
+# sigmap's Makefile hardcodes -march=native in cxxflags.
+ARG TARGET_ARCH=x86-64-v3
+RUN for c in gcc g++ cc c++; do \
+      printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
+        > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
+    done
+
 RUN cd ./sigmap && make
+
+RUN objdump -d sigmap/sigmap \
+      | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
+      && { echo 'ERROR: AVX-512 instructions present in sigmap'; exit 1; } \
+      || echo 'OK: sigmap is portable (no AVX-512)'
 
 
 FROM ubuntu:jammy

@@ -7,16 +7,28 @@ RUN  apt-get update \
   && apt-get install -y make build-essential libz-dev git \
   && rm -rf /var/lib/apt/lists/*
 
-ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
-
 ARG UPSTREAM_REF=ee59c4e5d04d8464e134fe5c0c9e1cd38ccc9cc3
 RUN git init . \
-    && git remote add origin https://github.com/cmu-safari/RawAlign \
-    && git fetch --depth 1 origin ${UPSTREAM_REF} \
-    && git checkout FETCH_HEAD \
+  && git remote add origin https://github.com/cmu-safari/RawAlign \
+  && git fetch --depth 1 origin ${UPSTREAM_REF} \
+  && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
+# --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
+# RawAlign's MODE=default appends -march=native. Wrappers append a portable
+# baseline last so it wins regardless of MODE.
+ARG TARGET_ARCH=x86-64-v3
+RUN for c in gcc g++ cc c++; do \
+      printf '#!/bin/sh\nexec /usr/bin/%s "$@" -march=%s\n' "$c" "$TARGET_ARCH" \
+        > /usr/local/bin/$c && chmod +x /usr/local/bin/$c; \
+    done
+
 RUN make
+
+RUN objdump -d bin/rawalign \
+      | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
+      && { echo 'ERROR: AVX-512 instructions present in rawalign'; exit 1; } \
+      || echo 'OK: rawalign is portable (no AVX-512)'
 
 
 FROM --platform=linux/amd64 ubuntu:jammy
