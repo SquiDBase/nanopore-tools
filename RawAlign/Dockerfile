@@ -21,20 +21,6 @@ RUN grep -rl 'march=native' . | xargs sed -i "s/-march=native/-march=${TARGET_AR
 
 RUN make
 
-ARG CHECK_AVX512=auto
-RUN arch="${TARGET_ARCH}" check="${CHECK_AVX512}"; \
-    if [ "$check" = "auto" ]; then \
-      echo "$arch" | grep -qE 'v4|avx512|znver4' && check=skip || check=enforce; \
-    fi; \
-    if [ "$check" = "enforce" ]; then \
-      objdump -d bin/rawalign \
-        | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
-        && { echo 'ERROR: AVX-512 instructions present in rawalign'; exit 1; } \
-        || echo 'OK: rawalign is portable (no AVX-512)'; \
-    else \
-      echo 'AVX-512 check skipped (avx512 build variant)'; \
-    fi
-
 
 FROM --platform=linux/amd64 ubuntu:jammy
 

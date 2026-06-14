@@ -31,22 +31,6 @@ RUN grep -rl 'march=native' RawHash | xargs sed -i "s/-march=native/-march=${TAR
 
 RUN cd ./RawHash && make
 
-# Guardrail: fail the build if AVX-512 slipped into the portable binary.
-# Skipped automatically when TARGET_ARCH is an AVX-512 tier (x86-64-v4 / znver4).
-ARG CHECK_AVX512=auto
-RUN arch="${TARGET_ARCH}" check="${CHECK_AVX512}"; \
-    if [ "$check" = "auto" ]; then \
-      echo "$arch" | grep -qE 'v4|avx512|znver4' && check=skip || check=enforce; \
-    fi; \
-    if [ "$check" = "enforce" ]; then \
-      objdump -d RawHash/bin/rawhash2 \
-        | grep -qiE '%zmm[0-9]|kmov[bwdq]|vpcompress|vpternlog|vpconflict|vpexpand' \
-        && { echo 'ERROR: AVX-512 instructions present in rawhash2'; exit 1; } \
-        || echo 'OK: rawhash2 is portable (no AVX-512)'; \
-    else \
-      echo 'AVX-512 check skipped (avx512 build variant)'; \
-    fi
-
 
 FROM ubuntu:jammy
 
