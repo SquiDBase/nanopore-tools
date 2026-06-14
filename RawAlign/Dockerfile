@@ -15,9 +15,12 @@ RUN git init . \
     && git submodule update --init --recursive --depth=1
 
 # --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
-# RawAlign's MODE=default appends -march=native. Patch it in-place after clone.
+# RawAlign's Makefile appends -march=native. Patch only top-level Makefiles,
+# not extern submodules, to avoid breaking their build systems.
 ARG TARGET_ARCH=x86-64-v3
-RUN grep -rl 'march=native' . | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
+RUN find . -maxdepth 3 -name 'Makefile' ! -path '*/extern/*' ! -path '*/.git/*' \
+  | xargs grep -l 'march=native' \
+  | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
 
 RUN make
 

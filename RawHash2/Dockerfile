@@ -21,13 +21,10 @@ RUN mkdir RawHash && cd RawHash \
     && git submodule update --init --recursive --depth=1
 
 # --- Portability fix -------------------------------------------------------
-# Upstream src/Makefile hardcodes -march=native, which bakes in whatever ISA
-# the build host has (GitHub runners often have AVX-512). That binary then
-# crashes with SIGILL on CPUs without it (e.g. AMD Zen 3). We patch the flag
-# in-place after clone; sed is reliable regardless of compiler path or Makefile
-# structure. ARG TARGET_ARCH lets callers override the baseline (default: AVX2).
+# Upstream src/Makefile hardcodes -march=native. Target only that file so the
+# zstd extern submodule build is not disrupted.
 ARG TARGET_ARCH=x86-64-v3
-RUN grep -rl 'march=native' RawHash | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
+RUN sed -i "s/-march=native/-march=${TARGET_ARCH}/g" RawHash/src/Makefile
 
 RUN cd ./RawHash && make
 
