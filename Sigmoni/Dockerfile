@@ -12,9 +12,12 @@ RUN case "${TARGET_ARCH}" in \
             x86-64-v4|*avx512*|znver4) gcc_arch=skylake-avx512 ;; \
             *) gcc_arch=haswell ;; \
         esac && \
-        sed -i "s/-march=native/-march=${gcc_arch}/g" /spumoni/CMakeLists.txt
+        find /spumoni -type f -name 'CMakeLists.txt' \
+            -exec sed -i "s/-march=native/-march=${gcc_arch}/g" {} +
 
-RUN rm -rf build && mkdir build && cd build && cmake .. && make install
+RUN rm -rf build && mkdir build && cd build \
+        && env -u TARGET_ARCH cmake .. \
+        && env -u TARGET_ARCH make install
 
 
 FROM --platform=linux/amd64 python:3.9 as build
