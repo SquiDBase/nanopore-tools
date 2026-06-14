@@ -26,7 +26,7 @@ RUN mkdir RawHash && cd RawHash \
 ARG TARGET_ARCH=x86-64-v3
 RUN sed -i "s/-march=native/-march=${TARGET_ARCH}/g" RawHash/src/Makefile
 
-RUN cd ./RawHash && make
+RUN cd ./RawHash && env -u TARGET_ARCH make
 
 
 FROM ubuntu:jammy

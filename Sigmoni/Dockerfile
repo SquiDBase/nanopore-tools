@@ -12,9 +12,7 @@ RUN case "${TARGET_ARCH}" in \
             x86-64-v4|*avx512*|znver4) gcc_arch=skylake-avx512 ;; \
             *) gcc_arch=haswell ;; \
         esac && \
-        find /spumoni -maxdepth 3 -name 'CMakeLists.txt' ! -path '*/extern/*' \
-            | xargs grep -l 'march=native' \
-            | xargs sed -i "s/-march=native/-march=${gcc_arch}/g"
+        sed -i "s/-march=native/-march=${gcc_arch}/g" /spumoni/CMakeLists.txt
 
 RUN rm -rf build && mkdir build && cd build && cmake .. && make install
 

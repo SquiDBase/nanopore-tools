@@ -22,7 +22,7 @@ RUN find . -maxdepth 3 -name 'Makefile' ! -path '*/extern/*' ! -path '*/.git/*' 
   | xargs grep -l 'march=native' \
   | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
 
-RUN make
+RUN env -u TARGET_ARCH make
 
 
 FROM --platform=linux/amd64 ubuntu:jammy

@@ -27,7 +27,7 @@ RUN find sigmap -maxdepth 3 -name 'Makefile' ! -path '*/extern/*' ! -path '*/.gi
     | xargs grep -l 'march=native' \
     | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
 
-RUN cd ./sigmap && make
+RUN cd ./sigmap && env -u TARGET_ARCH make
 
 
 FROM ubuntu:jammy
