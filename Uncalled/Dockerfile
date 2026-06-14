@@ -6,9 +6,11 @@ WORKDIR /app
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends build-essential gcc wget git
 
-ARG UPSTREAM_REF=58dbec6
-RUN git clone https://github.com/skovaka/UNCALLED . \
-    && git checkout ${UPSTREAM_REF} \
+ARG UPSTREAM_REF=58dbec69f625e0343739d821788d536b578ea41d
+RUN git init . \
+    && git remote add origin https://github.com/skovaka/UNCALLED \
+    && git fetch --depth 1 origin ${UPSTREAM_REF} \
+    && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
 RUN pip install --user .

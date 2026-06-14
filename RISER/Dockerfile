@@ -10,10 +10,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 # Clone RISER and install requirements
-ARG UPSTREAM_REF=d3410a6
-RUN git clone https://github.com/comprna/riser riser && \
-    cd riser && \
-    git checkout ${UPSTREAM_REF} && \
+ARG UPSTREAM_REF=d3410a6da26a6fa1222f67ca8d73a48cdc58c6d6
+RUN mkdir riser && cd riser && \
+    git init && \
+    git remote add origin https://github.com/comprna/riser && \
+    git fetch --depth 1 origin ${UPSTREAM_REF} && \
+    git checkout FETCH_HEAD && \
+    rm -rf .git && \
     pip install --upgrade pip && \
     pip install --prefix=/opt/riser -r requirements.txt
 

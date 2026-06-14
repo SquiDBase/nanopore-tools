@@ -9,9 +9,11 @@ RUN  apt-get update \
 
 ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
 
-ARG UPSTREAM_REF=ee59c4e
-RUN git clone https://github.com/cmu-safari/RawAlign . \
-    && git checkout ${UPSTREAM_REF} \
+ARG UPSTREAM_REF=ee59c4e5d04d8464e134fe5c0c9e1cd38ccc9cc3
+RUN git init . \
+    && git remote add origin https://github.com/cmu-safari/RawAlign \
+    && git fetch --depth 1 origin ${UPSTREAM_REF} \
+    && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
 RUN make
