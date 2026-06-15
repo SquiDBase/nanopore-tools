@@ -2,7 +2,23 @@ FROM --platform=linux/amd64 oma219/spumoni:v2.0.9 as spumoni
 
 WORKDIR /spumoni
 
-RUN rm -rf build && mkdir build && cd build && cmake .. && make install
+# --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
+# SPUMONI's CMake sets -march=native in CMAKE_CXX_FLAGS_RELEASE. The SPUMONI
+# base image ships old GCC (pre-11) which does not understand x86-64-v* level
+# names — it uses CPU-name aliases instead. Translate, then patch CMakeLists.txt
+# directly so cmake's compiler test also uses the correct name.
+ARG TARGET_ARCH=x86-64-v3
+RUN case "${TARGET_ARCH}" in \
+            x86-64-v4|*avx512*|znver4) gcc_arch=skylake-avx512 ;; \
+            *) gcc_arch=haswell ;; \
+        esac && \
+        find /spumoni -type f -name 'CMakeLists.txt' \
+            -exec sed -i "s/-march=native/-march=${gcc_arch}/g" {} +
+
+RUN rm -rf build && mkdir build && cd build \
+        && env -u TARGET_ARCH cmake .. \
+        && env -u TARGET_ARCH make install
+
 
 FROM --platform=linux/amd64 python:3.9 as build
 
@@ -57,9 +73,3 @@ RUN chmod +x /sigmoni/index.py && chmod +x /sigmoni/main.py
 USER user
 
 WORKDIR /workspace
-
-
-
-
-
-

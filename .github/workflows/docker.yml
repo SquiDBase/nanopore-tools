@@ -70,10 +70,14 @@ jobs:
           ALL='[
             {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
             {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4"},
-            {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign"},
-            {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni"},
-            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2"},
-            {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap"},
+            {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign","target_arch":"x86-64-v3","image_suffix":""},
+            {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign","target_arch":"x86-64-v4","image_suffix":"-avx512"},
+            {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni","target_arch":"x86-64-v3","image_suffix":""},
+            {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni","target_arch":"x86-64-v4","image_suffix":"-avx512"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v3","image_suffix":""},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v4","image_suffix":"-avx512"},
+            {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","target_arch":"x86-64-v3","image_suffix":""},
+            {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","target_arch":"x86-64-v4","image_suffix":"-avx512"},
             {"name":"squigglenet","dockerfile":"SquiggleNet/Dockerfile","context":"SquiggleNet"},
             {"name":"riser","dockerfile":"RISER/Dockerfile","context":"RISER"},
             {"name":"readcurrent","dockerfile":"ReadCurrent/Dockerfile","context":"ReadCurrent"},
@@ -100,7 +104,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   build-and-push:
-    name: ${{ matrix.name }}
+    name: ${{ matrix.name }}${{ matrix.image_suffix || '' }}
     needs: detect-changes
     if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
@@ -116,12 +120,15 @@ jobs:
           set -euo pipefail
           TAG=$(git rev-parse --short HEAD)
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          SUFFIX="${{ matrix.image_suffix }}"
           {
             echo "tag=${TAG}"
             echo "owner=${OWNER}"
+            echo "image_name=${{ matrix.name }}${SUFFIX}"
           } >> "$GITHUB_OUTPUT"
           echo "Tag: $TAG"
           echo "Owner: $OWNER"
+          echo "Image: ${{ matrix.name }}${SUFFIX}"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -141,8 +148,10 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64
           provenance: false
+          build-args: |
+            TARGET_ARCH=${{ matrix.target_arch || 'x86-64-v3' }}
           tags: |
-            ghcr.io/${{ steps.ver.outputs.owner }}/${{ matrix.name }}:${{ steps.ver.outputs.tag }}
-            ghcr.io/${{ steps.ver.outputs.owner }}/${{ matrix.name }}:latest
-          cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+            ghcr.io/${{ steps.ver.outputs.owner }}/${{ steps.ver.outputs.image_name }}:${{ steps.ver.outputs.tag }}
+            ghcr.io/${{ steps.ver.outputs.owner }}/${{ steps.ver.outputs.image_name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}

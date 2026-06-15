@@ -7,16 +7,22 @@ RUN  apt-get update \
   && apt-get install -y make build-essential libz-dev git \
   && rm -rf /var/lib/apt/lists/*
 
-ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
-
 ARG UPSTREAM_REF=ee59c4e5d04d8464e134fe5c0c9e1cd38ccc9cc3
 RUN git init . \
-    && git remote add origin https://github.com/cmu-safari/RawAlign \
-    && git fetch --depth 1 origin ${UPSTREAM_REF} \
-    && git checkout FETCH_HEAD \
+  && git remote add origin https://github.com/cmu-safari/RawAlign \
+  && git fetch --depth 1 origin ${UPSTREAM_REF} \
+  && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
-RUN make
+# --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
+# RawAlign's Makefile appends -march=native. Patch only top-level Makefiles,
+# not extern submodules, to avoid breaking their build systems.
+ARG TARGET_ARCH=x86-64-v3
+RUN find . -maxdepth 3 -name 'Makefile' ! -path '*/extern/*' ! -path '*/.git/*' \
+  | xargs grep -l 'march=native' \
+  | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
+
+RUN env -u TARGET_ARCH make
 
 
 FROM --platform=linux/amd64 ubuntu:jammy

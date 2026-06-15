@@ -12,8 +12,6 @@ RUN apt-get update && \
         git && \
     rm -rf /var/lib/apt/lists/*
 
-ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
-
 ARG UPSTREAM_REF=d3956eaf261588555fa884c5c294fd46df591851
 RUN mkdir RawHash && cd RawHash \
     && git init . \
@@ -22,8 +20,13 @@ RUN mkdir RawHash && cd RawHash \
     && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
+# --- Portability fix -------------------------------------------------------
+# Upstream src/Makefile hardcodes -march=native. Target only that file so the
+# zstd extern submodule build is not disrupted.
+ARG TARGET_ARCH=x86-64-v3
+RUN sed -i "s/-march=native/-march=${TARGET_ARCH}/g" RawHash/src/Makefile
 
-RUN cd ./RawHash && make
+RUN cd ./RawHash && env -u TARGET_ARCH make
 
 
 FROM ubuntu:jammy

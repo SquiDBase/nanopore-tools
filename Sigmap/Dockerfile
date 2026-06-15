@@ -12,8 +12,6 @@ RUN apt-get update && \
         git && \
     rm -rf /var/lib/apt/lists/*
 
-ENV HDF5_PLUGIN_PATH=/path/to/hdf5/plugins/lib
-
 ARG UPSTREAM_REF=c9a40483264c9514587a36555b5af48d3f054f6f
 RUN mkdir sigmap && cd sigmap \
     && git init . \
@@ -22,7 +20,14 @@ RUN mkdir sigmap && cd sigmap \
     && git checkout FETCH_HEAD \
     && git submodule update --init --recursive --depth=1
 
-RUN cd ./sigmap && make
+# --- Portability fix (see RawHash2/Dockerfile for rationale) ---------------
+# sigmap's Makefile hardcodes -march=native. Patch only top-level Makefiles.
+ARG TARGET_ARCH=x86-64-v3
+RUN find sigmap -maxdepth 3 -name 'Makefile' ! -path '*/extern/*' ! -path '*/.git/*' \
+    | xargs grep -l 'march=native' \
+    | xargs sed -i "s/-march=native/-march=${TARGET_ARCH}/g"
+
+RUN cd ./sigmap && env -u TARGET_ARCH make
 
 
 FROM ubuntu:jammy
