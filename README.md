@@ -41,11 +41,11 @@ For the four compiled C/C++ tools (`rawalign`, `rawhash2`, `sigmap`,
 The portable images are the default and are the safe choice for Zen 3 and most
 general-purpose x86-64 hosts.
 
-`dorado`/`dorado-legacy` pin an upstream **release version** (`ARG
+`dorado-v212`/`dorado-v096` pin an upstream **release version** (`ARG
 DORADO_VERSION`) rather than a commit, and are built from a tarball rather
 than the `git fetch` pattern below — dorado is only distributed as a
-prebuilt release archive, not a buildable source tree. `dorado-legacy` is
-not a stale pin left behind by accident: dorado 1.0.0 dropped R9.4.1,
+prebuilt release archive, not a buildable source tree. `dorado-v096` is not
+a stale pin left behind by accident: dorado 1.0.0 dropped R9.4.1,
 R10.4.1 4 kHz sampling, and RNA002 basecalling models and never brought them
 back, so 0.9.6 (the last release before that) is the only image here that
 can still basecall data from those chemistries. See `Dorado/README.md` for
@@ -81,8 +81,8 @@ matching tag; substitute `:latest` with a specific `<short-sha>` to pin.
 
 | Tool | Upstream | Pull |
 |---|---|---|
-| Dorado | [nanoporetech/dorado](https://github.com/nanoporetech/dorado) (2.1.2) | `docker pull ghcr.io/squidbase/dorado:latest` |
-| Dorado (legacy) | [nanoporetech/dorado](https://github.com/nanoporetech/dorado) (0.9.6) | `docker pull ghcr.io/squidbase/dorado-legacy:latest` |
+| Dorado (v212) | [nanoporetech/dorado](https://github.com/nanoporetech/dorado) (2.1.2) | `docker pull ghcr.io/squidbase/dorado-v212:latest` |
+| Dorado (v096) | [nanoporetech/dorado](https://github.com/nanoporetech/dorado) (0.9.6) | `docker pull ghcr.io/squidbase/dorado-v096:latest` |
 
 ## Building locally
 
