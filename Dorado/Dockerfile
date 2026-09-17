@@ -72,6 +72,15 @@ RUN mkdir -p /models \
 
 FROM debian:bookworm-slim
 
+# Install procps for 'ps' command needed by Nextflow - without it the task
+# wrapper aborts with "Command 'ps' required by nextflow to collect task
+# metrics cannot be found" and exit 1, before the tool ever runs. Not optional
+# for squibench in particular: per-task peak RSS and CPU are the measurement.
+# Same fix, same reason as Uncalled/Dockerfile and RISER/Dockerfile.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends procps && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN useradd -m user
 
 COPY --from=build /opt/dorado /opt/dorado
@@ -79,6 +88,16 @@ COPY --from=build /models /models
 COPY --from=build /usr/local/bin/minimap2 /usr/local/bin/minimap2
 
 ENV PATH=/opt/dorado/bin:$PATH
+
+# Fail the build, not an HPC job four hours in, if the final image is missing
+# something the pipeline needs. `ps` is here because its absence is silent at
+# build time and fatal at run time (see the procps note above); dorado and
+# minimap2 because the multi-stage COPYs are easy to get subtly wrong. Same
+# spirit as the /models emptiness check in the build stage.
+RUN command -v ps >/dev/null \
+ && command -v minimap2 >/dev/null \
+ && command -v dorado >/dev/null \
+ || { echo "ERROR: final image is missing a required binary (ps/minimap2/dorado)" >&2; exit 1; }
 
 USER user
 
