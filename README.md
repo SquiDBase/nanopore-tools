@@ -76,6 +76,7 @@ matching tag; substitute `:latest` with a specific `<short-sha>` to pin.
 | RISER | [comprna/riser](https://github.com/comprna/riser) | `docker pull ghcr.io/squidbase/riser:latest` |
 | DeepSelectNet (CPU) | [AnjanaSenanayake/DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet) | `docker pull ghcr.io/squidbase/deepselectnet-cpu:latest` |
 | DeepSelectNet (GPU) | [AnjanaSenanayake/DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet) | `docker pull ghcr.io/squidbase/deepselectnet-gpu:latest` |
+| NanoDeep | [lysovosyl/NanoDeep](https://github.com/lysovosyl/NanoDeep) (built from the [laura-raes fork](https://github.com/laura-raes/NanoDeep), see `NanoDeep/README.md`) | `docker pull ghcr.io/squidbase/nanodeep:latest` |
 
 ### Basecalling + mapping
 

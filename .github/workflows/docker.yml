@@ -58,6 +58,8 @@ jobs:
               - 'DeepSelectNet/**'
             deepselectnet-gpu:
               - 'DeepSelectNet/**'
+            nanodeep:
+              - 'NanoDeep/**'
             dorado-v212:
               - 'Dorado/**'
             dorado-v096:
@@ -87,6 +89,7 @@ jobs:
             {"name":"readcurrent","dockerfile":"ReadCurrent/Dockerfile","context":"ReadCurrent"},
             {"name":"deepselectnet-cpu","dockerfile":"DeepSelectNet/Dockerfile.cpu","context":"DeepSelectNet"},
             {"name":"deepselectnet-gpu","dockerfile":"DeepSelectNet/Dockerfile.gpu","context":"DeepSelectNet"},
+            {"name":"nanodeep","dockerfile":"NanoDeep/Dockerfile","context":"NanoDeep"},
             {"name":"dorado-v212","dockerfile":"Dorado/Dockerfile","context":"Dorado","dorado_version":"2.1.2"},
             {"name":"dorado-v096","dockerfile":"Dorado/Dockerfile","context":"Dorado","dorado_version":"0.9.6","dorado_models":"dna_r9.4.1_e8_fast@v3.4 dna_r10.4.1_e8.2_260bps_fast@v4.1.0 dna_r10.4.1_e8.2_400bps_fast@v4.1.0 dna_r10.4.1_e8.2_400bps_fast@v5.0.0 rna002_70bps_fast@v3 rna004_130bps_fast@v5.1.0"}
           ]'
