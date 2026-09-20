@@ -1,4 +1,4 @@
-FROM python:3.10.8-slim AS build
+FROM python:3.10-slim AS build
 
 WORKDIR /app
 
@@ -18,9 +18,10 @@ RUN mkdir riser && cd riser && \
     git checkout FETCH_HEAD && \
     rm -rf .git && \
     pip install --upgrade pip && \
-    pip install --prefix=/opt/riser -r requirements.txt
+    pip install --prefix=/opt/riser -r requirements.txt && \
+    pip install --prefix=/opt/riser "pytorch-lightning==2.0.9"
 
-FROM python:3.10.8-slim
+FROM python:3.10-slim
 
 # Create a non-root user
 RUN useradd -m user  && \
@@ -42,6 +43,16 @@ RUN ln -s /home/user/riser/riser/riser.py /home/user/.local/bin/riser && \
 	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/test.py && \
 	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/retrain/preprocess.py && \
 	sed -i '1i#!/usr/bin/env python3' /home/user/riser/riser/retrain/write_tensors.py
+
+# Restore utilities.py
+RUN printf '%s\n' \
+	'import attridict' \
+	'import yaml' \
+	'' \
+	'def get_config(filepath):' \
+	'    with open(filepath) as config_file:' \
+	'        return attridict(yaml.load(config_file, Loader=yaml.Loader))' \
+	> /home/user/riser/riser/utilities.py
 
 # Set environment
 ENV PATH="/home/user/.local/bin:/home/user/riser/riser:$PATH"
