@@ -50,6 +50,8 @@ jobs:
               - 'Sigmap/**'
             squigglenet:
               - 'SquiggleNet/**'
+            boostnano:
+              - 'BoostNano/**'
             riser:
               - 'RISER/**'
             readcurrent:
@@ -85,6 +87,7 @@ jobs:
             {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","target_arch":"x86-64-v3","image_suffix":""},
             {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","target_arch":"x86-64-v4","image_suffix":"-avx512"},
             {"name":"squigglenet","dockerfile":"SquiggleNet/Dockerfile","context":"SquiggleNet"},
+            {"name":"boostnano","dockerfile":"BoostNano/Dockerfile","context":"BoostNano"},
             {"name":"riser","dockerfile":"RISER/Dockerfile","context":"RISER"},
             {"name":"readcurrent","dockerfile":"ReadCurrent/Dockerfile","context":"ReadCurrent"},
             {"name":"deepselectnet-cpu","dockerfile":"DeepSelectNet/Dockerfile.cpu","context":"DeepSelectNet"},
