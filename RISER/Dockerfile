@@ -56,6 +56,12 @@ RUN printf '%s\n' \
 
 # Set environment
 ENV PATH="/home/user/.local/bin:/home/user/riser/riser:$PATH"
+# Explicit, rather than relying on Python's user-site: under Apptainer the
+# HOST's $HOME is kept, so ~/.local resolves to the submitting user's home and
+# the dependencies copied to /home/user/.local above become invisible - every
+# third-party import then fails. Uncalled and BoostNano set it for the same
+# reason.
+ENV PYTHONPATH="/home/user/.local/lib/python3.10/site-packages"
 
 USER user
 WORKDIR /workspace

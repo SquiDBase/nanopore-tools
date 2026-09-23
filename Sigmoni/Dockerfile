@@ -54,6 +54,11 @@ RUN useradd -m user
 # copy uncalled4
 COPY --chown=user:user --from=build /root/.local /home/user/.local
 ENV PATH=/home/user/.local/bin:$PATH
+# Explicit, rather than relying on Python's user-site: under Apptainer the
+# HOST's $HOME is kept, so ~/.local resolves to the submitting user's home and
+# the packages copied above become invisible - every third-party import then
+# fails. Uncalled and BoostNano set it for the same reason.
+ENV PYTHONPATH=/home/user/.local/lib/python3.9/site-packages
 
 # Copy the entire `/spumoni/build` folder into the Docker container
 COPY --chown=user:user --from=spumoni /spumoni/build /spumoni/build
