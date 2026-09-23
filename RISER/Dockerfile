@@ -54,6 +54,17 @@ RUN printf '%s\n' \
 	'        return attridict(yaml.load(config_file, Loader=yaml.Loader))' \
 	> /home/user/riser/riser/utilities.py
 
+# test.py computes `device` (cuda if available, else cpu) but then loads the
+# checkpoint with a bare torch.load(), so a checkpoint saved on GPU - which the
+# released models are - fails to deserialize on a CPU-only node. map_location is
+# correct on both devices, so this is a portability fix, not a CPU special case:
+# it needs no follow-up when running on GPU. The grep guards the sed - if a
+# future UPSTREAM_REF moves this line, the build fails here instead of silently
+# shipping the bug again.
+RUN grep -q 'load_state_dict(torch\.load(model_file))' /home/user/riser/riser/test.py && \
+	sed -i 's/torch\.load(model_file)/torch.load(model_file, map_location=device)/' \
+		/home/user/riser/riser/test.py
+
 # Set environment
 ENV PATH="/home/user/.local/bin:/home/user/riser/riser:$PATH"
 # Explicit, rather than relying on Python's user-site: under Apptainer the
