@@ -56,8 +56,11 @@ tag, built by running the **Build and push Docker images** workflow manually
 - `tag`: the version tag (e.g. `v2.1`)
 
 This publishes `ghcr.io/squidbase/rawhash2:v2.1` (and `rawhash2-avx512:v2.1`
-for arch-split tools), plus an immutable `:v2.1-<short-sha>` recording which
-state of this repo built it. `:latest` is not moved by pinned builds.
+for arch-split tools), plus a unique `:v2.1-<repo-sha>-<upstream-ref>`
+recording exactly which state of this repo and upstream built it. `:latest`
+is not moved by pinned builds (`tag=latest` is rejected). `dorado-*` and
+`boostnano` pin upstream via their own version ARGs and are rejected with
+`upstream_ref`.
 
 Published pinned versions:
 

@@ -95,6 +95,22 @@ jobs:
               echo "::error::upstream_ref requires a tag (otherwise it would overwrite :latest)"; exit 1
             fi
           fi
+          # The inputs land verbatim in image tags and build-args, so they must
+          # be single clean tokens: no 'latest' (pinned builds must never move
+          # it) and no whitespace/newlines (tag-line or build-arg injection).
+          if [[ -n "$DISPATCH_TAG" ]]; then
+            if [[ "$DISPATCH_TAG" == "latest" || ! "$DISPATCH_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "::error::tag must be a single valid docker tag, and not 'latest'"; exit 1
+            fi
+          fi
+          if [[ -n "$DISPATCH_REF" ]]; then
+            if [[ ! "$DISPATCH_REF" =~ ^[A-Za-z0-9._/-]{1,128}$ ]]; then
+              echo "::error::upstream_ref must be a plain git ref (commit sha, tag, or branch)"; exit 1
+            fi
+            if [[ "$DISPATCH_TOOLS" == *dorado* || "$DISPATCH_TOOLS" == *boostnano* ]]; then
+              echo "::error::dorado/boostnano pin DORADO_VERSION/BOOSTNANO_VERSION, not UPSTREAM_REF - upstream_ref would be silently ignored"; exit 1
+            fi
+          fi
           ALL='[
             {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
             {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4"},
@@ -150,14 +166,20 @@ jobs:
         id: ver
         env:
           CUSTOM_TAG: ${{ github.event.inputs.tag }}
+          CUSTOM_REF: ${{ github.event.inputs.upstream_ref }}
         run: |
           set -euo pipefail
           SHA=$(git rev-parse --short HEAD)
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE="ghcr.io/${OWNER}/${{ matrix.name }}${{ matrix.image_suffix || '' }}"
           if [[ -n "$CUSTOM_TAG" ]]; then
-            # Pinned one-off build: version tag + immutable version-repo-sha tag, no :latest
-            TAGS="${IMAGE}:${CUSTOM_TAG}"$'\n'"${IMAGE}:${CUSTOM_TAG}-${SHA}"
+            # Pinned one-off build: version tag + unique traceability tag, no :latest.
+            # The unique tag includes the upstream ref when overridden, so two
+            # dispatches with the same tag but different refs can't collide.
+            UNIQUE="${CUSTOM_TAG}-${SHA}"
+            REFBIT="${CUSTOM_REF//[^A-Za-z0-9_.-]/-}"   # '/' in branch refs is invalid in a docker tag
+            [[ -n "$REFBIT" ]] && UNIQUE="${UNIQUE}-${REFBIT:0:7}"
+            TAGS="${IMAGE}:${CUSTOM_TAG}"$'\n'"${IMAGE}:${UNIQUE}"
           else
             TAGS="${IMAGE}:${SHA}"$'\n'"${IMAGE}:latest"
           fi
