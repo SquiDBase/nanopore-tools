@@ -41,6 +41,33 @@ For the four compiled C/C++ tools (`rawalign`, `rawhash2`, `sigmap`,
 The portable images are the default and are the safe choice for Zen 3 and most
 general-purpose x86-64 hosts.
 
+### Pinned upstream versions
+
+Some tools need a specific upstream version to stay available — e.g. results in
+the RawHash2 paper are only reproducible with the published
+[v2.1](https://github.com/CMU-SAFARI/RawHash/releases/tag/v2.1), while `:latest`
+tracks upstream `main`. These are published as one-off builds under a version
+tag, built by running the **Build and push Docker images** workflow manually
+(Actions → Run workflow) with:
+
+- `tools`: the tool to build (e.g. `rawhash2`) — never `all`
+- `upstream_ref`: the upstream commit to pin (e.g.
+  `54fed8d23e99a47a7375eaa1ff8440e84444e2c4` for RawHash v2.1)
+- `tag`: the version tag (e.g. `v2.1`)
+
+This publishes `ghcr.io/squidbase/rawhash2:v2.1` (and `rawhash2-avx512:v2.1`
+for arch-split tools), plus a unique `:v2.1-<repo-sha>-<upstream-ref>`
+recording exactly which state of this repo and upstream built it. `:latest`
+is not moved by pinned builds (`tag=latest` is rejected). `dorado-*` and
+`boostnano` pin upstream via their own version ARGs and are rejected with
+`upstream_ref`.
+
+Published pinned versions:
+
+| Image tag | Upstream | Why |
+|---|---|---|
+| `rawhash2:v2.1` | CMU-SAFARI/RawHash `54fed8d` ([v2.1](https://github.com/CMU-SAFARI/RawHash/releases/tag/v2.1)) | Version used in the RawHash2 paper; later commits changed the default `--seg-*` event-detection parameters, so `:latest` does not reproduce the published F1 scores. |
+
 `dorado-v212`/`dorado-v096` pin an upstream **release version** (`ARG
 DORADO_VERSION`) rather than a commit, and are built from a tarball rather
 than the `git fetch` pattern below — dorado is only distributed as a

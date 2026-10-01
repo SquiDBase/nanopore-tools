@@ -11,6 +11,12 @@ on:
         description: 'Comma-separated tool names to build, or "all"'
         default: 'all'
         required: false
+      upstream_ref:
+        description: 'Pin the UPSTREAM_REF build-arg (one-off version builds, e.g. a paper version). Requires tag + explicit tools.'
+        required: false
+      tag:
+        description: 'Image tag for a pinned build (e.g. v2.1). Replaces the sha/latest tags. Requires explicit tools.'
+        required: false
 
 permissions:
   contents: read
@@ -73,8 +79,38 @@ jobs:
           CHANGES: ${{ steps.filter.outputs.changes }}
           EVENT: ${{ github.event_name }}
           DISPATCH_TOOLS: ${{ github.event.inputs.tools }}
+          DISPATCH_REF: ${{ github.event.inputs.upstream_ref }}
+          DISPATCH_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
+
+          # Pinned builds must name their tools and carry a tag - "all" would
+          # stamp every image with one tool's version, and a pinned ref without
+          # its own tag would silently overwrite :latest.
+          if [[ -n "${DISPATCH_REF}${DISPATCH_TAG}" ]]; then
+            if [[ "$DISPATCH_TOOLS" == "all" || -z "$DISPATCH_TOOLS" ]]; then
+              echo "::error::upstream_ref/tag require an explicit tools list, not 'all'"; exit 1
+            fi
+            if [[ -n "$DISPATCH_REF" && -z "$DISPATCH_TAG" ]]; then
+              echo "::error::upstream_ref requires a tag (otherwise it would overwrite :latest)"; exit 1
+            fi
+          fi
+          # The inputs land verbatim in image tags and build-args, so they must
+          # be single clean tokens: no 'latest' (pinned builds must never move
+          # it) and no whitespace/newlines (tag-line or build-arg injection).
+          if [[ -n "$DISPATCH_TAG" ]]; then
+            if [[ "$DISPATCH_TAG" == "latest" || ! "$DISPATCH_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+              echo "::error::tag must be a single valid docker tag, and not 'latest'"; exit 1
+            fi
+          fi
+          if [[ -n "$DISPATCH_REF" ]]; then
+            if [[ ! "$DISPATCH_REF" =~ ^[A-Za-z0-9._/-]{1,128}$ ]]; then
+              echo "::error::upstream_ref must be a plain git ref (commit sha, tag, or branch)"; exit 1
+            fi
+            if [[ "$DISPATCH_TOOLS" == *dorado* || "$DISPATCH_TOOLS" == *boostnano* ]]; then
+              echo "::error::dorado/boostnano pin DORADO_VERSION/BOOSTNANO_VERSION, not UPSTREAM_REF - upstream_ref would be silently ignored"; exit 1
+            fi
+          fi
           ALL='[
             {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
             {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4"},
@@ -126,21 +162,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute image tag and owner
+      - name: Compute image tags
         id: ver
+        env:
+          CUSTOM_TAG: ${{ github.event.inputs.tag }}
+          CUSTOM_REF: ${{ github.event.inputs.upstream_ref }}
         run: |
           set -euo pipefail
-          TAG=$(git rev-parse --short HEAD)
+          SHA=$(git rev-parse --short HEAD)
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          SUFFIX="${{ matrix.image_suffix }}"
+          IMAGE="ghcr.io/${OWNER}/${{ matrix.name }}${{ matrix.image_suffix || '' }}"
+          if [[ -n "$CUSTOM_TAG" ]]; then
+            # Pinned one-off build: version tag + unique traceability tag, no :latest.
+            # The unique tag includes the upstream ref when overridden, so two
+            # dispatches with the same tag but different refs can't collide.
+            UNIQUE="${CUSTOM_TAG}-${SHA}"
+            REFBIT="${CUSTOM_REF//[^A-Za-z0-9_.-]/-}"   # '/' in branch refs is invalid in a docker tag
+            [[ -n "$REFBIT" ]] && UNIQUE="${UNIQUE}-${REFBIT:0:7}"
+            TAGS="${IMAGE}:${CUSTOM_TAG}"$'\n'"${IMAGE}:${UNIQUE}"
+          else
+            TAGS="${IMAGE}:${SHA}"$'\n'"${IMAGE}:latest"
+          fi
           {
-            echo "tag=${TAG}"
-            echo "owner=${OWNER}"
-            echo "image_name=${{ matrix.name }}${SUFFIX}"
+            echo "tags<<EOF"
+            echo "$TAGS"
+            echo "EOF"
           } >> "$GITHUB_OUTPUT"
-          echo "Tag: $TAG"
-          echo "Owner: $OWNER"
-          echo "Image: ${{ matrix.name }}${SUFFIX}"
+          echo "$TAGS"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -164,12 +212,13 @@ jobs:
           # matrix entry's dockerfile doesn't declare those ARGs, so buildx prints an
           # unused-build-arg warning for them. That's the price of one Dockerfile
           # shared by both dorado-v212/dorado-v096 instead of two near-identical ones.
+          # UPSTREAM_REF is only passed when the dispatch input is set, so the
+          # per-Dockerfile defaults keep applying to normal builds.
           build-args: |
             TARGET_ARCH=${{ matrix.target_arch || 'x86-64-v3' }}
             DORADO_VERSION=${{ matrix.dorado_version || '2.1.2' }}
             DORADO_MODELS=${{ matrix.dorado_models || '' }}
-          tags: |
-            ghcr.io/${{ steps.ver.outputs.owner }}/${{ steps.ver.outputs.image_name }}:${{ steps.ver.outputs.tag }}
-            ghcr.io/${{ steps.ver.outputs.owner }}/${{ steps.ver.outputs.image_name }}:latest
+            ${{ github.event.inputs.upstream_ref && format('UPSTREAM_REF={0}', github.event.inputs.upstream_ref) || '' }}
+          tags: ${{ steps.ver.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}
