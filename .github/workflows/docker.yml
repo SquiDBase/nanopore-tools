@@ -145,6 +145,9 @@ jobs:
             # Entries with a fixed version_tag own their pin; a pinned dispatch
             # would otherwise build them at its upstream_ref under its tag.
             if [[ -n "${DISPATCH_REF}${DISPATCH_TAG}" ]]; then
+              if jq -e --arg t "$DISPATCH_TAG" 'any(.[]; .version_tag == $t)' <<< "$SELECTED" >/dev/null; then
+                echo "::error::tag '$DISPATCH_TAG' is a permanent version_tag; a dispatch would overwrite that image"; exit 1
+              fi
               SELECTED=$(jq -c '[.[] | select(.version_tag == null)]' <<< "$SELECTED")
             fi
           else
