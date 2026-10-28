@@ -113,6 +113,8 @@ jobs:
           fi
           ALL='[
             {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
+            {"name":"uncalled","dockerfile":"Uncalled/Dockerfile.v1.0","context":"Uncalled","version_tag":"v1.0"},
+            {"name":"uncalled","dockerfile":"Uncalled/Dockerfile.v2.0","context":"Uncalled","version_tag":"v2.0"},
             {"name":"uncalled4","dockerfile":"Uncalled4/Dockerfile","context":"Uncalled4"},
             {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign","target_arch":"x86-64-v3","image_suffix":""},
             {"name":"rawalign","dockerfile":"RawAlign/Dockerfile","context":"RawAlign","target_arch":"x86-64-v4","image_suffix":"-avx512"},
@@ -140,6 +142,11 @@ jobs:
               NAMES=$(jq -c -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' <<< "$DISPATCH_TOOLS")
               SELECTED=$(jq -c --argjson n "$NAMES" '[.[] | select(.name as $x | $n | index($x))]' <<< "$ALL")
             fi
+            # Entries with a fixed version_tag own their pin; a pinned dispatch
+            # would otherwise build them at its upstream_ref under its tag.
+            if [[ -n "${DISPATCH_REF}${DISPATCH_TAG}" ]]; then
+              SELECTED=$(jq -c '[.[] | select(.version_tag == null)]' <<< "$SELECTED")
+            fi
           else
             SELECTED=$(jq -c --argjson c "$CHANGES" '[.[] | select(.name as $x | $c | index($x))]' <<< "$ALL")
           fi
@@ -152,7 +159,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   build-and-push:
-    name: ${{ matrix.name }}${{ matrix.image_suffix || '' }}
+    name: ${{ matrix.name }}${{ matrix.image_suffix || '' }}${{ matrix.version_tag && format(':{0}', matrix.version_tag) || '' }}
     needs: detect-changes
     if: needs.detect-changes.outputs.any == 'true'
     runs-on: ubuntu-latest
@@ -167,12 +174,16 @@ jobs:
         env:
           CUSTOM_TAG: ${{ github.event.inputs.tag }}
           CUSTOM_REF: ${{ github.event.inputs.upstream_ref }}
+          VERSION_TAG: ${{ matrix.version_tag }}
         run: |
           set -euo pipefail
           SHA=$(git rev-parse --short HEAD)
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE="ghcr.io/${OWNER}/${{ matrix.name }}${{ matrix.image_suffix || '' }}"
-          if [[ -n "$CUSTOM_TAG" ]]; then
+          if [[ -n "$VERSION_TAG" ]]; then
+            # Permanent paper-version entry: its own tag, never :latest.
+            TAGS="${IMAGE}:${VERSION_TAG}"$'\n'"${IMAGE}:${VERSION_TAG}-${SHA}"
+          elif [[ -n "$CUSTOM_TAG" ]]; then
             # Pinned one-off build: version tag + unique traceability tag, no :latest.
             # The unique tag includes the upstream ref when overridden, so two
             # dispatches with the same tag but different refs can't collide.
@@ -220,5 +231,5 @@ jobs:
             DORADO_MODELS=${{ matrix.dorado_models || '' }}
             ${{ github.event.inputs.upstream_ref && format('UPSTREAM_REF={0}', github.event.inputs.upstream_ref) || '' }}
           tags: ${{ steps.ver.outputs.tags }}
-          cache-from: type=gha,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}
+          cache-from: type=gha,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}${{ matrix.version_tag || '' }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}${{ matrix.version_tag || '' }}
