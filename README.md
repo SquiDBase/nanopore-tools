@@ -67,6 +67,13 @@ Published pinned versions:
 | Image tag | Upstream | Why |
 |---|---|---|
 | `rawhash2:v2.1` | CMU-SAFARI/RawHash `54fed8d` ([v2.1](https://github.com/CMU-SAFARI/RawHash/releases/tag/v2.1)) | Version used in the RawHash2 paper; later commits changed the default `--seg-*` event-detection parameters, so `:latest` does not reproduce the published F1 scores. |
+| `uncalled:v1.0` | skovaka/UNCALLED `4f222e5` ([v1.0](https://github.com/skovaka/UNCALLED/releases/tag/v1.0)) | Published version of the UNCALLED paper (Kovaka et al. 2021). Own Dockerfile (`Uncalled/Dockerfile.v1.0`); v1.0 CLI (`-x <bwa-prefix>`), bundled `bwa` included. |
+| `uncalled:v2.0` | skovaka/UNCALLED `8abc073` ([v2.0](https://github.com/skovaka/UNCALLED/releases/tag/v2.0)) | Version the UNCALLED paper used for its real-data experiments. Own Dockerfile (`Uncalled/Dockerfile.v2.0`); bundled `bwa` included. |
+
+`uncalled:v1.0`/`:v2.0` can't be one-off dispatch builds: v2.3 restructured the
+build (submodules under `submods/`, bundled hdf5), so the old versions need
+their own Dockerfiles. They are permanent matrix entries with a fixed
+`version_tag`, rebuilt whenever `Uncalled/` changes, and never touch `:latest`.
 
 `dorado-v212`/`dorado-v096` pin an upstream **release version** (`ARG
 DORADO_VERSION`) rather than a commit, and are built from a tarball rather

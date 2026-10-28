@@ -17,6 +17,16 @@ To use `UNCALLED` through Docker, you can set an alias as follows. This command 
 alias uncalled="docker run --rm -it -v $PWD:/workspace haliliceylanua/uncalled:latest"
 ```
 
+### Versions
+
+- `ghcr.io/squidbase/uncalled:latest` — upstream v2.3
+- `ghcr.io/squidbase/uncalled:v2.0` — version used for the paper's real-data experiments
+- `ghcr.io/squidbase/uncalled:v1.0` — published version (Kovaka et al. 2021)
+
+v1.0 and v2.0 need a BWA index built with the bundled `bwa` first
+(`bwa index -p <prefix> <fasta>`); v1.0 uses its own CLI
+(`uncalled index -i <fasta> -x <prefix>`, `uncalled map -x <prefix> -i <reads>`).
+
 ### Basic Examples
 
 1. **Indexing reference sequences**

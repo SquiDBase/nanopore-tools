@@ -1,0 +1,54 @@
+# UNCALLED v1.0 (published version, Kovaka et al. 2021). amd64 only.
+# Published as ghcr.io/squidbase/uncalled:v1.0. Uses the v1.0 CLI as-is
+# (uncalled index -i <fasta> -x <prefix>, uncalled map -x <prefix> -i <reads>).
+FROM --platform=linux/amd64 python:3.6 AS build
+
+WORKDIR /app
+
+# git, wget, gcc already in python:3.6; upgrading them hits dead bullseye-security files
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libhdf5-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# commit of the v1.0 tag
+ARG UPSTREAM_REF=4f222e5d4e51046512be05df8b4536e3b3845779
+RUN git init . \
+    && git remote add origin https://github.com/skovaka/UNCALLED \
+    && git fetch --depth 1 origin ${UPSTREAM_REF} \
+    && git checkout FETCH_HEAD \
+    && git submodule update --init --recursive --depth=1
+
+# v1.0 links -lhdf5 and has no install_requires; Debian keeps hdf5 under hdf5/serial
+ENV CFLAGS="-I/usr/include/hdf5/serial" \
+    LDFLAGS="-L/usr/lib/x86_64-linux-gnu/hdf5/serial"
+RUN pip install --user numpy && pip install --user .
+
+# v1.0 needs a BWA index built with its bundled bwa (bwa index -p <prefix> <fasta>)
+# -fcommon: this 2019 bwa predates gcc 10 defaulting to -fno-common
+RUN make -C bwa clean && make -C bwa CFLAGS="-g -Wall -Wno-unused-function -O2 -fcommon" \
+    && cp bwa/bwa /root/.local/bin/
+
+RUN mkdir -p /vbz_plugin && cd /vbz_plugin && \
+    wget -q https://github.com/nanoporetech/vbz_compression/releases/download/v1.0.1/ont-vbz-hdf-plugin-1.0.1-Linux-x86_64.tar.gz && \
+    tar -xzf ont-vbz-hdf-plugin-1.0.1-Linux-x86_64.tar.gz && \
+    rm ont-vbz-hdf-plugin-1.0.1-Linux-x86_64.tar.gz
+
+FROM --platform=linux/amd64 python:3.6-slim
+
+# procps for Nextflow; libhdf5 runtime for the compiled extension
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends procps libhdf5-103-1 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m user
+
+COPY --chown=user:user --from=build /root/.local /home/user/.local
+COPY --from=build /vbz_plugin/ont-vbz-hdf-plugin-1.0.1-Linux /usr/local/
+
+ENV PATH=/home/user/.local/bin:$PATH
+ENV PYTHONPATH=/home/user/.local/lib/python3.6/site-packages
+ENV HDF5_PLUGIN_PATH=/usr/local/usr/local/hdf5/lib/plugin
+
+USER user
+WORKDIR /workspace
+ENTRYPOINT []
