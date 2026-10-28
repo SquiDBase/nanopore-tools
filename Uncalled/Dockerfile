@@ -3,8 +3,7 @@ FROM --platform=linux/amd64 python:3.6 as build
 
 WORKDIR /app
 
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential gcc wget git
+# git, wget, gcc already in python:3.6; installing them hits dead bullseye-security files
 
 ARG UPSTREAM_REF=58dbec69f625e0343739d821788d536b578ea41d
 RUN git init . \
