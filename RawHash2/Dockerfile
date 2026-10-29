@@ -26,7 +26,10 @@ RUN mkdir RawHash && cd RawHash \
 ARG TARGET_ARCH=x86-64-v3
 RUN sed -i "s/-march=native/-march=${TARGET_ARCH}/g" RawHash/src/Makefile
 
-RUN cd ./RawHash && env -u TARGET_ARCH make
+# RawHash v1.x names its binary rawhash (RawHash2 renamed it); one name keeps the
+# image interface the same for every pinned version.
+RUN cd ./RawHash && env -u TARGET_ARCH make \
+    && if [ -e bin/rawhash ]; then mv bin/rawhash bin/rawhash2; fi
 
 
 FROM ubuntu:jammy

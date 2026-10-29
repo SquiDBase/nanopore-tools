@@ -67,6 +67,7 @@ Published pinned versions:
 | Image tag | Upstream | Why |
 |---|---|---|
 | `rawhash2:v2.1` | CMU-SAFARI/RawHash `54fed8d` ([v2.1](https://github.com/CMU-SAFARI/RawHash/releases/tag/v2.1)) | Version used in the RawHash2 paper; later commits changed the default `--seg-*` event-detection parameters, so `:latest` does not reproduce the published F1 scores. |
+| `rawhash2:v1.0` | CMU-SAFARI/RawHash `e9a56fe` ([v1.0](https://github.com/CMU-SAFARI/RawHash/releases/tag/v1.0)) | RawHash before it became RawHash2, for evaluations that may have run it (e.g. Sigmoni, Shivakumar et al. 2024, whose released comparison script calls `rawhash`). Dispatch with `upstream_ref=e9a56fec18007341231af89b32eec9578b1ba622`. v1.x builds its binary as `rawhash`; the Dockerfile renames it to `rawhash2`, so every tag has the same interface. |
 | `uncalled:v1.0` | skovaka/UNCALLED `4f222e5` ([v1.0](https://github.com/skovaka/UNCALLED/releases/tag/v1.0)) | Published version of the UNCALLED paper (Kovaka et al. 2021). Own Dockerfile (`Uncalled/Dockerfile.v1.0`); v1.0 CLI (`-x <bwa-prefix>`), bundled `bwa` included. |
 | `uncalled:v2.0` | skovaka/UNCALLED `8abc073` ([v2.0](https://github.com/skovaka/UNCALLED/releases/tag/v2.0)) | Version the UNCALLED paper used for its real-data experiments. Own Dockerfile (`Uncalled/Dockerfile.v2.0`); bundled `bwa` included. |
 
