@@ -112,6 +112,7 @@ matching tag; substitute `:latest` with a specific `<short-sha>` to pin.
 | DeepSelectNet (CPU) | [AnjanaSenanayake/DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet) | `docker pull ghcr.io/squidbase/deepselectnet-cpu:latest` |
 | DeepSelectNet (GPU) | [AnjanaSenanayake/DeepSelectNet](https://github.com/AnjanaSenanayake/DeepSelectNet) | `docker pull ghcr.io/squidbase/deepselectnet-gpu:latest` |
 | NanoDeep | [lysovosyl/NanoDeep](https://github.com/lysovosyl/NanoDeep) (built from the [laura-raes fork](https://github.com/laura-raes/NanoDeep), see `NanoDeep/README.md`) | `docker pull ghcr.io/squidbase/nanodeep:latest` |
+| Nanopore_Deep_Learning | [nshomron/Nanopore_Deep_Learning](https://github.com/nshomron/Nanopore_Deep_Learning) (patched for current torch/numpy and given a CLI and an offline classifier, see `Nanopore_Deep_Learning/README.md`) | `docker pull ghcr.io/squidbase/nanoporedeeplearning:latest` |
 
 ### Basecalling + mapping
 

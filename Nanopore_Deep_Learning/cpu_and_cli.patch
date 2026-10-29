@@ -1,0 +1,174 @@
+diff --git a/nanopore_dataloader.py b/nanopore_dataloader.py
+index 294c502..a671f1a 100644
+--- a/nanopore_dataloader.py
++++ b/nanopore_dataloader.py
+@@ -110,7 +110,7 @@ class NanoporeDataset(Dataset):
+ 
+ 	def __getitem__(self, index):
+ 
+-		itemToGet_index = self.load_order.pop(0)
++		itemToGet_index = self.load_order[index]
+ 		itemToGet = self.signal_data[itemToGet_index]
+ 		itemToGet_label = self.labels[itemToGet_index]
+ 
+@@ -208,10 +208,10 @@ class ReduceLROnPlateau(object):
+ 			raise RuntimeError('Learning Rate Plateau Reducing mode %s is unknown!')
+ 		if self.mode == 'min' :
+ 			self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
+-			self.best = np.Inf
++			self.best = np.inf
+ 		else:
+ 			self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
+-			self.best = -np.Inf
++			self.best = -np.inf
+ 		self.cooldown_counter = 0
+ 		self.wait = 0
+ 		self.lr_epsilon = self.min_lr * 1e-4
+diff --git a/nanopore_training.py b/nanopore_training.py
+index 74f2bb0..538c87d 100644
+--- a/nanopore_training.py
++++ b/nanopore_training.py
+@@ -52,8 +52,10 @@ def main():
+ 	use_gpu = args.gpu
+ 	filesToLoadFrom = args.gpu
+ 	shuffleDatasets = True
+-	linesToLoad_chrom = 10000
+-	linesToLoad_mito = 10000
++	## None = every read in the file. Upstream hardcoded 10000 here, which silently
++	## truncated any larger training set.
++	linesToLoad_chrom = args.max_reads
++	linesToLoad_mito = args.max_reads
+ 	# batchesForTest - number of times test dataset is reshuffled and rechecked
+ 	batchesForTest = 3
+ 
+@@ -67,47 +69,23 @@ def main():
+ 
+ 	## Loading training data and setting logging location
+ 	torch.manual_seed(7)
+-	folderWithDataFiles = "./Data/Hek1_example_data/"
+-	currentModelFolder = "results_onHek"
+-	searchModelsInFolder = "Models/"
++	currentModelFolder = args.out_dir
+ 	if not os.path.exists(currentModelFolder):
+ 		os.makedirs(currentModelFolder)
+-	
+-	pattern_chrom = re.compile("FAF13387-Hek_run1.minimap2.not-Mito5KbTrain\.csv")
+-	pattern_Mito = re.compile("FAF13387-Hek_run1.minimap2.Mito5KbTrain\.csv")
+-
+-	trainDataList_Chrom = []
+-	trainDataList_Mito = []
+-	for file in os.listdir(folderWithDataFiles):
+-		if pattern_chrom.match(file):
+-			print("Loading: ", file)
+-			trainDataList_Chrom.append(pd.read_csv(folderWithDataFiles+file,header = None, nrows=linesToLoad_chrom, dtype = np.int16))
+-		if pattern_Mito.match(file):
+-			print("Loading: ", file)
+-			trainDataList_Mito.append(pd.read_csv(folderWithDataFiles+file,header = None, nrows=linesToLoad_mito, dtype = np.int16))
+-	wholeData_Chrom = pd.concat(trainDataList_Chrom).values
+-	wholeData_Mito = pd.concat(trainDataList_Mito).values
+-	del trainDataList_Chrom
+-	del trainDataList_Mito
+-
+-	
+-	pattern_chrom_TEST = re.compile("FAF13387-Hek_run1.minimap2.not-Mito5KbTest\.csv")
+-	pattern_Mito_TEST = re.compile("FAF13387-Hek_run1.minimap2.Mito5KbTest\.csv")
+-
+-
+-	trainDataList_Chrom_TEST = []
+-	trainDataList_Mito_TEST = []
+-	for file in os.listdir(folderWithDataFiles):
+-		if pattern_chrom_TEST.match(file):
+-			print("Loading: ", file)
+-			trainDataList_Chrom_TEST.append(pd.read_csv(folderWithDataFiles+file,header = None, nrows=linesToLoad_chrom, dtype = np.int16))
+-		if pattern_Mito_TEST.match(file):
+-			print("Loading: ", file)
+-			trainDataList_Mito_TEST.append(pd.read_csv(folderWithDataFiles+file,header = None, nrows=linesToLoad_mito, dtype = np.int16))
+-	wholeData_Chrom_TEST = pd.concat(trainDataList_Chrom_TEST).values
+-	wholeData_Mito_TEST = pd.concat(trainDataList_Mito_TEST).values
+-	del trainDataList_Chrom_TEST
+-	del trainDataList_Mito_TEST
++
++	## "Chrom" is this script's name for class 0 and "Mito" for class 1, after the
++	## mitochondrial-enrichment task the paper trained on. --target feeds Mito, so the
++	## target is class 1 and the background is class 0; nanoporedeeplearning_parse_results.py
++	## in squidbench reads the argmax the same way round.
++	def loadReads(path, linesToLoad):
++		print("Loading: ", path)
++		## one read per row, raw int16 signal samples, every row the same width
++		return pd.read_csv(path, header = None, nrows=linesToLoad, dtype = np.int16).values
++
++	wholeData_Chrom = loadReads(args.train_background, linesToLoad_chrom)
++	wholeData_Mito = loadReads(args.train_target, linesToLoad_mito)
++	wholeData_Chrom_TEST = loadReads(args.valid_background, linesToLoad_chrom)
++	wholeData_Mito_TEST = loadReads(args.valid_target, linesToLoad_mito)
+ 
+ 
+ 	print("Size of the training Chrom and Mito:")
+@@ -147,7 +125,7 @@ def main():
+ 	summaryFile = open(str(currentModelFolder)+'/summaryFile_Cliveome.csv', 'w')
+ 	summaryFile.write('Name, Mito_Total_Reads, Mito_Correct_Reads, Chrom_Total_Reads, Chrom_Correct_Reads \n')
+ 	modelFolderPattern = re.compile(".*_winlen.*")
+-	for currentTestingModelFolder in os.listdir(searchModelsInFolder):
++	for currentTestingModelFolder in ["{}_winlen{}".format(args.model_name, args.window_length)]:
+ 		if modelFolderPattern.match(currentTestingModelFolder):
+ 
+ 			newFinetuneFolder = currentModelFolder + "/" + currentTestingModelFolder
+@@ -209,18 +187,19 @@ def main():
+ 				 use_bias=True, batch_first=True, dropout=0.5,num_classes = 2)
+ 			
+ 
+-			saved_model_path = '{}/{}/{}'.format(searchModelsInFolder,currentTestingModelFolder, "Nanopore_model.pth")
+-			
+-			## or uncomment to load previously saved model located in saved_model_path 
+-
+-			# model= torch.load(saved_model_path)
++			## To fine-tune instead of training from scratch, replace the line above with
++			##   model = torch.load(<path>, map_location='cpu', weights_only=False)
++			## (weights_only=False: these .pth files are pickled nn.Module objects, not
++			## state dicts, so torch >= 2.6's default refuses them.)
+ 
+ 			if use_gpu:
+ 				torch.set_default_tensor_type('torch.cuda.FloatTensor')
+ 				model.cuda()
+ 
+ 			optim_lr = 0.001
+-			loss_fn = nn.CrossEntropyLoss().cuda()
++			loss_fn = nn.CrossEntropyLoss()
++			if use_gpu:
++				loss_fn = loss_fn.cuda()
+ 			
+ 			kappa = 0.01
+ 			momentum = 0.5
+@@ -580,6 +559,10 @@ def main():
+ 
+ 
+ 
++			save_path = '{}/{}'.format(newFinetuneFolder, "Nanopore_model.pth")
++			torch.save(minLossModel if minLossModel is not None else model, save_path)
++			print("Saved model to ", save_path)
++
+ 			print(numTotalMitoSamples ,
+ 			numTotalChromSamples ,
+ 			numCorrectMitoSamples ,
+@@ -598,5 +581,21 @@ if __name__ == '__main__':
+ 						help='The maximum iteration count')
+ 	parser.add_argument('--gpu', default=False, action='store_true',
+ 						help='The value specifying whether to use GPU')
++	parser.add_argument('--train-target', required=True,
++						help='CSV of target-class training reads (class 1)')
++	parser.add_argument('--train-background', required=True,
++						help='CSV of background-class training reads (class 0)')
++	parser.add_argument('--valid-target', required=True,
++						help='CSV of target-class validation reads (class 1)')
++	parser.add_argument('--valid-background', required=True,
++						help='CSV of background-class validation reads (class 0)')
++	parser.add_argument('--out-dir', default='results_onHek',
++						help='Directory for the trained model, plots and summary CSV')
++	parser.add_argument('--model-name', default='bnLSTM',
++						help='Name of the subdirectory of --out-dir the model is written to')
++	parser.add_argument('--window-length', default=32, type=int, choices=(1, 32),
++						help='Signal window fed to the LSTM: 32 (stride 10, 200 steps) or 1 (stride 1, 2000 steps)')
++	parser.add_argument('--max-reads', default=None, type=int,
++						help='Read at most this many reads from each input CSV (default: all)')
+ 	args = parser.parse_args()
+ 	main()
