@@ -62,16 +62,20 @@ docker run --rm ghcr.io/squidbase/nanoporedeeplearning:latest \
   `--train-target`/`--valid-target` feed Mito. Nothing in the `.pth` records
   this. Note this is the *opposite* of NanoDeep, where class 0 is the target.
 - **Input is one read per CSV row**, raw int16 signal samples, every row the
-  same width. Rows must be at least `1000 + 1 + (steps-1)*stride + window`
-  samples wide — 3023 for the default 32-sample window — or the read is
-  windowed out of zeros. `nanopore_classify.py` skips reads below that floor
-  and says how many.
+  same width, starting where upstream's `Signalstart()` finds the strand.
+  That is what `Preparing_fast5_for_analysis/get_signal.py` writes:
+  `signal[start:start+5000]` for every read with more than 5000 samples after
+  its start, dropping reads where `Signalstart()` returns 0. It expects one
+  read per fast5 file, so for multi-read fast5 apply the same rule yourself,
+  with `from get_signal import Signalstart`.
 - **Training augments, classification does not.** The training transform is
   `startMove -> differences -> cutToWindows -> noise`, where `startMove` jitters
   the read start by a random 0-999 samples and `noise` adds N(0,5).
-  `nanopore_classify.py` pins the offset at 0 and drops the noise, so it reads
-  samples `[0, 3023)` of each read. `selfcheck.py` runs at build time and fails
-  the build if the two chains stop agreeing.
+  `nanopore_classify.py` starts each read at `Signalstart()`, pins the offset
+  at 0 and drops the noise, so it reads samples `[start, start+2023)`. Like
+  Fan et al.'s `inference.py` it skips reads with no start or with fewer than
+  2100 differences after it, and says how many. `selfcheck.py` runs at build
+  time and fails the build if the two chains stop agreeing.
 - **Model files are pickled `nn.Module` objects, not state dicts,** so loading
   needs `weights_only=False` on torch >= 2.6 and `nanopore_models` on the path.
   Both are already true inside this image.

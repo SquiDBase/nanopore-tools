@@ -7,6 +7,13 @@ lives in a fork of nanoporetech/read_until_api and needs the proprietary
 MinKNOW API to run at all. This script is the missing third piece: load a
 model, preprocess reads exactly the way training did, write one class per read.
 
+Training never sees a read from its first sample: upstream's get_signal.py,
+which writes the training CSVs, starts every read at Signalstart() and drops
+the reads where it finds no start. So this script does the same, and then
+follows the one published offline inference for this model, Fan et al. 2024's
+inference.py (github.com/fankc/Nanopore_Deep_Learning): a read with no start,
+or with fewer than 2100 differences after it, is skipped.
+
 Output is read_id,predicted_class with the raw argmax index, the same shape as
 NanoDeep's predictions_per_read.csv. --target trained class 1, so 1 is target
 and 0 is background (see nanopore_training.py's loadReads comment).
@@ -21,24 +28,32 @@ import numpy as np
 import torch
 from ont_fast5_api.fast5_interface import get_fast5_file
 
+# Upstream's own function, imported rather than copied so it cannot drift from the
+# one that cut the training CSVs. Importing get_signal.py runs nothing but imports.
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "Preparing_fast5_for_analysis"))
+from get_signal import Signalstart  # noqa: E402
+
 # Not stored on the model, so it has to be rederived the way nanopore_training.py
 # derives it - from the window length encoded in the model directory's name.
 STRIDE_FOR_WINDOW = {1: 1, 32: 10}
 
-# startMove_transform drops a fixed 1000 samples whatever offset it picks.
-STARTMOVE_TRIM = 1000
+# Fan et al.'s inference.py skips a read with fewer than --length differences after
+# its start (2100, its default and their published value). Both window configurations
+# read fewer than that: (200-1)*10+32 = 2022 for 32, (2000-1)*1+1 = 2000 for 1.
+MIN_DIFFS = 2100
 
 
 def preprocess(signal, seq_length, stride, win_length):
     """The training transform (nanopore_dataloader.py), minus its two augmentations.
 
-    Training composes startMove -> differences -> cutToWindows -> noise.
-    startMove slices signal[r:-1000+r] for a random r in [0, 999]; r=0 is the
+    signal starts at the read's Signalstart, like a get_signal.py training row.
+    Training composes startMove -> differences -> cutToWindows -> noise on that row.
+    startMove slices row[r:-1000+r] for a random r in [0, 999]; r=0 is the
     deterministic member of that family, and cutToWindows then reads only the
     first (seq_length-1)*stride + win_length differences, so the model sees
-    samples [0, that+1) of the read. noise is augmentation and is dropped here.
+    samples [0, that+1) of signal. noise is augmentation and is dropped here.
     """
-    diffs = np.diff(signal[: len(signal) - STARTMOVE_TRIM])
+    diffs = np.diff(signal)
     windows = np.zeros((seq_length, win_length), dtype="int16")
     for i in range(seq_length):
         windows[i, :] = diffs[i * stride : i * stride + win_length]
@@ -79,15 +94,12 @@ def main():
         sys.exit(f"ERROR: model window length {win_length} is neither 1 nor 32, so its stride is unknown")
     stride = STRIDE_FOR_WINDOW[win_length]
 
-    # cutToWindows indexes the differences up to (seq_length-1)*stride + win_length,
-    # and np.diff costs one sample on top of startMove's 1000. A shorter read would
-    # be padded with whatever np.zeros left behind, so skip it instead.
-    min_samples = STARTMOVE_TRIM + 1 + (seq_length - 1) * stride + win_length
     print(f"model: {type(model).__name__}, {seq_length} steps of {win_length} samples, stride {stride}")
-    print(f"skipping reads shorter than {min_samples} samples")
+    print(f"skipping reads with no Signalstart or fewer than {MIN_DIFFS} differences after it")
 
     written = 0
-    skipped = 0
+    no_start = 0
+    too_short = 0
     with open(args.out, "w", newline="") as out:
         writer = csv.writer(out)
         writer.writerow(["read_id", "predicted_class"])
@@ -107,18 +119,27 @@ def main():
             batch_signals.clear()
 
         for read_id, signal in iter_reads(args.signal_dir):
-            if len(signal) < min_samples:
-                skipped += 1
+            # Checked first because Signalstart raises on a read of 10 samples or fewer;
+            # any read this short fails the check after it anyway.
+            if len(signal) <= MIN_DIFFS:
+                too_short += 1
+                continue
+            start = Signalstart(signal)
+            if start == 0:  # upstream's "no valid start point"
+                no_start += 1
+                continue
+            if len(signal) - start - 1 < MIN_DIFFS:
+                too_short += 1
                 continue
             batch_ids.append(read_id)
-            batch_signals.append(preprocess(signal, seq_length, stride, win_length))
+            batch_signals.append(preprocess(signal[start:], seq_length, stride, win_length))
             if len(batch_ids) == args.batch_size:
                 flush()
         flush()
 
-    print(f"classified {written} reads, skipped {skipped} too-short reads -> {args.out}")
+    print(f"classified {written} reads, skipped {no_start} with no Signalstart and {too_short} too short -> {args.out}")
     if written == 0:
-        sys.exit(f"ERROR: no read under {args.signal_dir} was long enough to classify")
+        sys.exit(f"ERROR: no read under {args.signal_dir} could be classified")
 
 
 if __name__ == "__main__":
