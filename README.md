@@ -46,35 +46,34 @@ general-purpose x86-64 hosts.
 Some tools need a specific upstream version to stay available — e.g. results in
 the RawHash2 paper are only reproducible with the published
 [v2.1](https://github.com/CMU-SAFARI/RawHash/releases/tag/v2.1), while `:latest`
-tracks upstream `main`. These are published as one-off builds under a version
-tag, built by running the **Build and push Docker images** workflow manually
-(Actions → Run workflow) with:
+tracks upstream `main`. Every pinned version is a permanent matrix entry in
+`.github/workflows/docker.yml` with a fixed `version_tag`:
 
-- `tools`: the tool to build (e.g. `rawhash2`) — never `all`
-- `upstream_ref`: the upstream commit to pin (e.g.
-  `54fed8d23e99a47a7375eaa1ff8440e84444e2c4` for RawHash v2.1)
-- `tag`: the version tag (e.g. `v2.1`)
+- If the old version builds with the tool's current Dockerfile, the entry adds
+  `upstream_ref` (passed as the `UPSTREAM_REF` build-arg):
+  ```json
+  {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v3","image_suffix":"","version_tag":"v2.1","upstream_ref":"54fed8d23e99a47a7375eaa1ff8440e84444e2c4"}
+  ```
+- If it needs a different build recipe, it gets its own `Dockerfile.vX` and the
+  entry points `dockerfile` at it (e.g. `Uncalled/Dockerfile.v1.0`).
 
-This publishes `ghcr.io/squidbase/rawhash2:v2.1` (and `rawhash2-avx512:v2.1`
-for arch-split tools), plus a unique `:v2.1-<repo-sha>-<upstream-ref>`
-recording exactly which state of this repo and upstream built it. `:latest`
-is not moved by pinned builds (`tag=latest` is rejected). `dorado-*` and
-`boostnano` pin upstream via their own version ARGs and are rejected with
-`upstream_ref`.
+Arch-split tools need one entry per arch. This publishes
+`ghcr.io/squidbase/rawhash2:v2.1` (and `rawhash2-avx512:v2.1`), plus
+`:v2.1-<repo-sha>` recording which state of this repo built it. Pinned entries
+are rebuilt whenever the tool's directory changes and never touch `:latest`.
 
 Published pinned versions:
 
 | Image tag | Upstream | Why |
 |---|---|---|
 | `rawhash2:v2.1` | CMU-SAFARI/RawHash `54fed8d` ([v2.1](https://github.com/CMU-SAFARI/RawHash/releases/tag/v2.1)) | Version used in the RawHash2 paper; later commits changed the default `--seg-*` event-detection parameters, so `:latest` does not reproduce the published F1 scores. |
-| `rawhash2:v1.0` | CMU-SAFARI/RawHash `e9a56fe` ([v1.0](https://github.com/CMU-SAFARI/RawHash/releases/tag/v1.0)) | RawHash before it became RawHash2, for evaluations that may have run it (e.g. Sigmoni, Shivakumar et al. 2024, whose released comparison script calls `rawhash`). Dispatch with `upstream_ref=e9a56fec18007341231af89b32eec9578b1ba622`. v1.x builds its binary as `rawhash`; the Dockerfile renames it to `rawhash2`, so every tag has the same interface. |
+| `rawhash2:v1.0` | CMU-SAFARI/RawHash `e9a56fe` ([v1.0](https://github.com/CMU-SAFARI/RawHash/releases/tag/v1.0)) | RawHash before it became RawHash2, for evaluations that may have run it (e.g. Sigmoni, Shivakumar et al. 2024, whose released comparison script calls `rawhash`). v1.x builds its binary as `rawhash`; the Dockerfile renames it to `rawhash2`, so every tag has the same interface. |
 | `uncalled:v1.0` | skovaka/UNCALLED `4f222e5` ([v1.0](https://github.com/skovaka/UNCALLED/releases/tag/v1.0)) | Published version of the UNCALLED paper (Kovaka et al. 2021). Own Dockerfile (`Uncalled/Dockerfile.v1.0`); v1.0 CLI (`-x <bwa-prefix>`), bundled `bwa` included. |
 | `uncalled:v2.0` | skovaka/UNCALLED `8abc073` ([v2.0](https://github.com/skovaka/UNCALLED/releases/tag/v2.0)) | Version the UNCALLED paper used for its real-data experiments. Own Dockerfile (`Uncalled/Dockerfile.v2.0`); bundled `bwa` included. |
 
-`uncalled:v1.0`/`:v2.0` can't be one-off dispatch builds: v2.3 restructured the
-build (submodules under `submods/`, bundled hdf5), so the old versions need
-their own Dockerfiles. They are permanent matrix entries with a fixed
-`version_tag`, rebuilt whenever `Uncalled/` changes, and never touch `:latest`.
+`uncalled:v1.0`/`:v2.0` can't reuse `Uncalled/Dockerfile` with an
+`upstream_ref`: v2.3 restructured the build (submodules under `submods/`,
+bundled hdf5), so the old versions need their own Dockerfiles.
 
 `dorado-v212`/`dorado-v096` pin an upstream **release version** (`ARG
 DORADO_VERSION`) rather than a commit, and are built from a tarball rather
