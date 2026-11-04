@@ -11,12 +11,6 @@ on:
         description: 'Comma-separated tool names to build, or "all"'
         default: 'all'
         required: false
-      upstream_ref:
-        description: 'Pin the UPSTREAM_REF build-arg (one-off version builds, e.g. a paper version). Requires tag + explicit tools.'
-        required: false
-      tag:
-        description: 'Image tag for a pinned build (e.g. v2.1). Replaces the sha/latest tags. Requires explicit tools.'
-        required: false
 
 permissions:
   contents: read
@@ -81,38 +75,13 @@ jobs:
           CHANGES: ${{ steps.filter.outputs.changes }}
           EVENT: ${{ github.event_name }}
           DISPATCH_TOOLS: ${{ github.event.inputs.tools }}
-          DISPATCH_REF: ${{ github.event.inputs.upstream_ref }}
-          DISPATCH_TAG: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
 
-          # Pinned builds must name their tools and carry a tag - "all" would
-          # stamp every image with one tool's version, and a pinned ref without
-          # its own tag would silently overwrite :latest.
-          if [[ -n "${DISPATCH_REF}${DISPATCH_TAG}" ]]; then
-            if [[ "$DISPATCH_TOOLS" == "all" || -z "$DISPATCH_TOOLS" ]]; then
-              echo "::error::upstream_ref/tag require an explicit tools list, not 'all'"; exit 1
-            fi
-            if [[ -n "$DISPATCH_REF" && -z "$DISPATCH_TAG" ]]; then
-              echo "::error::upstream_ref requires a tag (otherwise it would overwrite :latest)"; exit 1
-            fi
-          fi
-          # The inputs land verbatim in image tags and build-args, so they must
-          # be single clean tokens: no 'latest' (pinned builds must never move
-          # it) and no whitespace/newlines (tag-line or build-arg injection).
-          if [[ -n "$DISPATCH_TAG" ]]; then
-            if [[ "$DISPATCH_TAG" == "latest" || ! "$DISPATCH_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
-              echo "::error::tag must be a single valid docker tag, and not 'latest'"; exit 1
-            fi
-          fi
-          if [[ -n "$DISPATCH_REF" ]]; then
-            if [[ ! "$DISPATCH_REF" =~ ^[A-Za-z0-9._/-]{1,128}$ ]]; then
-              echo "::error::upstream_ref must be a plain git ref (commit sha, tag, or branch)"; exit 1
-            fi
-            if [[ "$DISPATCH_TOOLS" == *dorado* || "$DISPATCH_TOOLS" == *boostnano* ]]; then
-              echo "::error::dorado/boostnano pin DORADO_VERSION/BOOSTNANO_VERSION, not UPSTREAM_REF - upstream_ref would be silently ignored"; exit 1
-            fi
-          fi
+          # Every published version is an entry here. An old version that builds
+          # with the current Dockerfile pins upstream_ref (the UPSTREAM_REF
+          # build-arg); one that needs a different recipe gets its own
+          # Dockerfile.vX. version_tag entries never touch :latest.
           ALL='[
             {"name":"uncalled","dockerfile":"Uncalled/Dockerfile","context":"Uncalled"},
             {"name":"uncalled","dockerfile":"Uncalled/Dockerfile.v1.0","context":"Uncalled","version_tag":"v1.0"},
@@ -124,6 +93,10 @@ jobs:
             {"name":"sigmoni","dockerfile":"Sigmoni/Dockerfile","context":"Sigmoni","target_arch":"x86-64-v4","image_suffix":"-avx512"},
             {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v3","image_suffix":""},
             {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v4","image_suffix":"-avx512"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v3","image_suffix":"","version_tag":"v2.1","upstream_ref":"54fed8d23e99a47a7375eaa1ff8440e84444e2c4"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v4","image_suffix":"-avx512","version_tag":"v2.1","upstream_ref":"54fed8d23e99a47a7375eaa1ff8440e84444e2c4"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v3","image_suffix":"","version_tag":"v1.0","upstream_ref":"e9a56fec18007341231af89b32eec9578b1ba622"},
+            {"name":"rawhash2","dockerfile":"RawHash2/Dockerfile","context":"RawHash2","target_arch":"x86-64-v4","image_suffix":"-avx512","version_tag":"v1.0","upstream_ref":"e9a56fec18007341231af89b32eec9578b1ba622"},
             {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","target_arch":"x86-64-v3","image_suffix":""},
             {"name":"sigmap","dockerfile":"Sigmap/Dockerfile","context":"Sigmap","target_arch":"x86-64-v4","image_suffix":"-avx512"},
             {"name":"squigglenet","dockerfile":"SquiggleNet/Dockerfile","context":"SquiggleNet"},
@@ -144,14 +117,6 @@ jobs:
             else
               NAMES=$(jq -c -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' <<< "$DISPATCH_TOOLS")
               SELECTED=$(jq -c --argjson n "$NAMES" '[.[] | select(.name as $x | $n | index($x))]' <<< "$ALL")
-            fi
-            # Entries with a fixed version_tag own their pin; a pinned dispatch
-            # would otherwise build them at its upstream_ref under its tag.
-            if [[ -n "${DISPATCH_REF}${DISPATCH_TAG}" ]]; then
-              if jq -e --arg t "$DISPATCH_TAG" 'any(.[]; .version_tag == $t)' <<< "$SELECTED" >/dev/null; then
-                echo "::error::tag '$DISPATCH_TAG' is a permanent version_tag; a dispatch would overwrite that image"; exit 1
-              fi
-              SELECTED=$(jq -c '[.[] | select(.version_tag == null)]' <<< "$SELECTED")
             fi
           else
             SELECTED=$(jq -c --argjson c "$CHANGES" '[.[] | select(.name as $x | $c | index($x))]' <<< "$ALL")
@@ -178,8 +143,6 @@ jobs:
       - name: Compute image tags
         id: ver
         env:
-          CUSTOM_TAG: ${{ github.event.inputs.tag }}
-          CUSTOM_REF: ${{ github.event.inputs.upstream_ref }}
           VERSION_TAG: ${{ matrix.version_tag }}
         run: |
           set -euo pipefail
@@ -189,14 +152,6 @@ jobs:
           if [[ -n "$VERSION_TAG" ]]; then
             # Permanent paper-version entry: its own tag, never :latest.
             TAGS="${IMAGE}:${VERSION_TAG}"$'\n'"${IMAGE}:${VERSION_TAG}-${SHA}"
-          elif [[ -n "$CUSTOM_TAG" ]]; then
-            # Pinned one-off build: version tag + unique traceability tag, no :latest.
-            # The unique tag includes the upstream ref when overridden, so two
-            # dispatches with the same tag but different refs can't collide.
-            UNIQUE="${CUSTOM_TAG}-${SHA}"
-            REFBIT="${CUSTOM_REF//[^A-Za-z0-9_.-]/-}"   # '/' in branch refs is invalid in a docker tag
-            [[ -n "$REFBIT" ]] && UNIQUE="${UNIQUE}-${REFBIT:0:7}"
-            TAGS="${IMAGE}:${CUSTOM_TAG}"$'\n'"${IMAGE}:${UNIQUE}"
           else
             TAGS="${IMAGE}:${SHA}"$'\n'"${IMAGE}:latest"
           fi
@@ -229,13 +184,13 @@ jobs:
           # matrix entry's dockerfile doesn't declare those ARGs, so buildx prints an
           # unused-build-arg warning for them. That's the price of one Dockerfile
           # shared by both dorado-v212/dorado-v096 instead of two near-identical ones.
-          # UPSTREAM_REF is only passed when the dispatch input is set, so the
-          # per-Dockerfile defaults keep applying to normal builds.
+          # UPSTREAM_REF is only passed for entries that pin upstream_ref, so the
+          # per-Dockerfile defaults keep applying to everything else.
           build-args: |
             TARGET_ARCH=${{ matrix.target_arch || 'x86-64-v3' }}
             DORADO_VERSION=${{ matrix.dorado_version || '2.1.2' }}
             DORADO_MODELS=${{ matrix.dorado_models || '' }}
-            ${{ github.event.inputs.upstream_ref && format('UPSTREAM_REF={0}', github.event.inputs.upstream_ref) || '' }}
+            ${{ matrix.upstream_ref && format('UPSTREAM_REF={0}', matrix.upstream_ref) || '' }}
           tags: ${{ steps.ver.outputs.tags }}
           cache-from: type=gha,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}${{ matrix.version_tag || '' }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}${{ matrix.image_suffix || '' }}${{ matrix.version_tag || '' }}
