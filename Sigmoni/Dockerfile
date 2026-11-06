@@ -43,7 +43,11 @@ RUN cd src/delta_rust && \
 
 RUN pip install --user numpy pandas scikit-learn Biopython tqdm
 
-RUN pip install --user git+https://github.com/skovaka/uncalled4
+# Sigmoni uses uncalled4's event detector, so an unpinned install could change the
+# events between builds. b3993fa (4.1.1) is the commit already in the 7b66741 and
+# e816a01 images (pip's direct_url.json), so pinning it changes nothing for them.
+ARG UNCALLED4_REF=b3993fab379e8e534947ce80fe97ecd008ef6f83
+RUN pip install --user git+https://github.com/skovaka/uncalled4@${UNCALLED4_REF}
 
 RUN pip install --user tblib
 
