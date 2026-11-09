@@ -1,31 +1,34 @@
 diff --git a/nanopore_dataloader.py b/nanopore_dataloader.py
-index 294c502..a671f1a 100644
+index 294c502..a17bbdc 100644
 --- a/nanopore_dataloader.py
 +++ b/nanopore_dataloader.py
-@@ -110,7 +110,7 @@ class NanoporeDataset(Dataset):
+@@ -110,7 +110,8 @@ class NanoporeDataset(Dataset):
  
  	def __getitem__(self, index):
  
 -		itemToGet_index = self.load_order.pop(0)
++		## SquiDBench: was load_order.pop(0), which shrinks the dataset mid-epoch, so torch > 1.8 fails at the end of epoch 1
 +		itemToGet_index = self.load_order[index]
  		itemToGet = self.signal_data[itemToGet_index]
  		itemToGet_label = self.labels[itemToGet_index]
  
-@@ -208,10 +208,10 @@ class ReduceLROnPlateau(object):
+@@ -208,10 +209,12 @@ class ReduceLROnPlateau(object):
  			raise RuntimeError('Learning Rate Plateau Reducing mode %s is unknown!')
  		if self.mode == 'min' :
  			self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
 -			self.best = np.Inf
++			## SquiDBench: np.Inf was removed in NumPy 2
 +			self.best = np.inf
  		else:
  			self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
 -			self.best = -np.Inf
++			## SquiDBench: np.Inf was removed in NumPy 2
 +			self.best = -np.inf
  		self.cooldown_counter = 0
  		self.wait = 0
  		self.lr_epsilon = self.min_lr * 1e-4
 diff --git a/nanopore_training.py b/nanopore_training.py
-index 74f2bb0..538c87d 100644
+index 74f2bb0..1a9282e 100644
 --- a/nanopore_training.py
 +++ b/nanopore_training.py
 @@ -52,8 +52,10 @@ def main():
@@ -34,20 +37,21 @@ index 74f2bb0..538c87d 100644
  	shuffleDatasets = True
 -	linesToLoad_chrom = 10000
 -	linesToLoad_mito = 10000
-+	## None = every read in the file. Upstream hardcoded 10000 here, which silently
-+	## truncated any larger training set.
++	## SquiDBench: --max-reads replaces a hardcoded 10000, which silently truncated any larger
++	## training set. None = every read in the file.
 +	linesToLoad_chrom = args.max_reads
 +	linesToLoad_mito = args.max_reads
  	# batchesForTest - number of times test dataset is reshuffled and rechecked
  	batchesForTest = 3
  
-@@ -67,47 +69,23 @@ def main():
+@@ -67,47 +69,25 @@ def main():
  
  	## Loading training data and setting logging location
  	torch.manual_seed(7)
 -	folderWithDataFiles = "./Data/Hek1_example_data/"
 -	currentModelFolder = "results_onHek"
 -	searchModelsInFolder = "Models/"
++	## SquiDBench: --out-dir replaces the fixed output folder results_onHek
 +	currentModelFolder = args.out_dir
  	if not os.path.exists(currentModelFolder):
  		os.makedirs(currentModelFolder)
@@ -88,6 +92,7 @@ index 74f2bb0..538c87d 100644
 -	del trainDataList_Chrom_TEST
 -	del trainDataList_Mito_TEST
 +
++	## SquiDBench: the four CSVs are arguments; upstream loaded four fixed Hek example files from ./Data/Hek1_example_data/
 +	## "Chrom" is this script's name for class 0 and "Mito" for class 1, after the
 +	## mitochondrial-enrichment task the paper trained on. --target feeds Mito, so the
 +	## target is class 1 and the background is class 0; nanoporedeeplearning_parse_results.py
@@ -104,16 +109,17 @@ index 74f2bb0..538c87d 100644
  
  
  	print("Size of the training Chrom and Mito:")
-@@ -147,7 +125,7 @@ def main():
+@@ -147,7 +127,8 @@ def main():
  	summaryFile = open(str(currentModelFolder)+'/summaryFile_Cliveome.csv', 'w')
  	summaryFile.write('Name, Mito_Total_Reads, Mito_Correct_Reads, Chrom_Total_Reads, Chrom_Correct_Reads \n')
  	modelFolderPattern = re.compile(".*_winlen.*")
 -	for currentTestingModelFolder in os.listdir(searchModelsInFolder):
++	## SquiDBench: one run set by --model-name/--window-length; upstream trained once per Models/ subfolder, taking the window from its name
 +	for currentTestingModelFolder in ["{}_winlen{}".format(args.model_name, args.window_length)]:
  		if modelFolderPattern.match(currentTestingModelFolder):
  
  			newFinetuneFolder = currentModelFolder + "/" + currentTestingModelFolder
-@@ -209,18 +187,19 @@ def main():
+@@ -209,18 +190,21 @@ def main():
  				 use_bias=True, batch_first=True, dropout=0.5,num_classes = 2)
  			
  
@@ -122,6 +128,7 @@ index 74f2bb0..538c87d 100644
 -			## or uncomment to load previously saved model located in saved_model_path 
 -
 -			# model= torch.load(saved_model_path)
++			## SquiDBench: saved_model_path removed: it only served the commented-out load from Models/, which is no longer scanned
 +			## To fine-tune instead of training from scratch, replace the line above with
 +			##   model = torch.load(<path>, map_location='cpu', weights_only=False)
 +			## (weights_only=False: these .pth files are pickled nn.Module objects, not
@@ -133,16 +140,18 @@ index 74f2bb0..538c87d 100644
  
  			optim_lr = 0.001
 -			loss_fn = nn.CrossEntropyLoss().cuda()
++			## SquiDBench: .cuda() only with --gpu; without a GPU it is a no-op only because the loss holds no tensors
 +			loss_fn = nn.CrossEntropyLoss()
 +			if use_gpu:
 +				loss_fn = loss_fn.cuda()
  			
  			kappa = 0.01
  			momentum = 0.5
-@@ -580,6 +559,10 @@ def main():
+@@ -580,6 +564,11 @@ def main():
  
  
  
++			## SquiDBench: always save at the end; upstream saved only while validating from batch 200 on, so shorter runs left no model
 +			save_path = '{}/{}'.format(newFinetuneFolder, "Nanopore_model.pth")
 +			torch.save(minLossModel if minLossModel is not None else model, save_path)
 +			print("Saved model to ", save_path)
@@ -150,10 +159,11 @@ index 74f2bb0..538c87d 100644
  			print(numTotalMitoSamples ,
  			numTotalChromSamples ,
  			numCorrectMitoSamples ,
-@@ -598,5 +581,21 @@ if __name__ == '__main__':
+@@ -598,5 +587,22 @@ if __name__ == '__main__':
  						help='The maximum iteration count')
  	parser.add_argument('--gpu', default=False, action='store_true',
  						help='The value specifying whether to use GPU')
++	## SquiDBench: arguments for what upstream hardcoded: input CSVs, output folder, model configuration, read limit
 +	parser.add_argument('--train-target', required=True,
 +						help='CSV of target-class training reads (class 1)')
 +	parser.add_argument('--train-background', required=True,
